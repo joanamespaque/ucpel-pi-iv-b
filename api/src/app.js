@@ -48,7 +48,7 @@ export function createApp() {
 
   app.get('/', (_req, res) => res.redirect('/docs'));
 
-  app.get('/health', async (_req, res) => {
+  app.get('/health', generalLimiter, async (_req, res) => {
     try {
       await prisma.$queryRaw`SELECT 1`;
       res.json({ status: 'ok', database: 'ok', version });
