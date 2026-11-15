@@ -66,7 +66,7 @@ final class SecurityTest extends TestCase
         self::assertTrue((new Auth(null, 'curta', false))->enabled());
     }
 
-    public function testContadorPorIpBloqueiaMesmoSemACookieDaSessao(): void
+    public function testContadorPorIpBloqueiaMesmoSemOCookieDaSessao(): void
     {
         $directory = sys_get_temp_dir() . '/interct-teste-' . bin2hex(random_bytes(4));
         $throttle = new LoginThrottle($directory, 3, 60);
