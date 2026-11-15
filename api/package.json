@@ -18,7 +18,7 @@
     "test": "dotenv -o -e .env.test -- prisma migrate deploy && dotenv -o -e .env.test -- node prisma/seed.js --reset && dotenv -o -e .env.test -- vitest run",
     "docs:build": "node scripts/build-docs.js",
     "db:seed:reset": "node prisma/seed.js --reset",
-    "render:build": "npm ci && npx prisma generate && npx prisma migrate deploy && node prisma/seed.js"
+    "render:build": "npm ci --include=dev && npx prisma generate && npx prisma migrate deploy && node prisma/seed.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
