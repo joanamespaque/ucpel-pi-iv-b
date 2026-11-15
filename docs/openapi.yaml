@@ -1,12 +1,13 @@
 openapi: 3.1.0
 info:
   title: InterCT API
-  version: 0.1.0
+  version: 1.0.0
   summary: API REST para a organização do centro de treinamento do Sport Club Internacional.
   description: |
     API desenvolvida no Projeto Integrador IV-B (UCPel) para organizar os
-    centros de treinamento, os times principais (masculino e feminino) e seus
-    elencos.
+    centros de treinamento do Sport Club Internacional: espaços, times
+    principais (masculino e feminino), elencos, técnicos e comissões técnicas,
+    uniformes e a agenda de treinos.
 
     **Dados ilustrativos:** a estrutura dos CTs reproduz informações públicas
     do clube, mas os nomes de jogadores e profissionais são fictícios.
@@ -17,6 +18,10 @@ info:
     **Autenticação:** as consultas (GET) são públicas. As operações que
     alteram dados (POST, PUT e DELETE) exigem uma chave de API no cabeçalho
     `X-API-Key`; sem ela, a resposta é 401.
+
+    **Paginação:** as listagens de jogadores, espaços, comissão técnica,
+    uniformes e treinos aceitam `pagina` (padrão 1) e `limite` (padrão 50,
+    máximo 100). O total de registros vem no cabeçalho `X-Total-Count`.
 
     **Limite de requisições:** 300 requisições a cada 15 minutos por IP, das
     quais no máximo 30 de escrita. Acima disso, a resposta é 429.
@@ -30,20 +35,31 @@ servers:
     description: Ambiente local
 tags:
   - name: CTs
-    description: Centros de treinamento e seus espaços.
+    description: Centros de treinamento.
+  - name: Espaços
+    description: Campos, academia, departamento médico e demais espaços dos CTs.
   - name: Times
-    description: Times principais e seus elencos.
+    description: Times principais, elencos, uniformes e agenda.
   - name: Jogadores
     description: Cadastro de jogadores e jogadoras.
+  - name: Técnicos
+    description: Técnicos vinculados aos times.
+  - name: Comissão técnica
+    description: Profissionais que trabalham com cada técnico.
+  - name: Uniformes
+    description: Uniformes de jogo, treino e viagem por temporada.
+  - name: Treinos
+    description: Agenda de treinos por time, espaço e horário.
   - name: Infraestrutura
     description: Estado da API.
-
 paths:
   /health:
     get:
-      tags: [Infraestrutura]
+      tags:
+        - Infraestrutura
       summary: Verifica a API e a conexão com o banco
       operationId: getHealth
+      security: []
       responses:
         '200':
           description: API e banco disponíveis.
@@ -52,57 +68,337 @@ paths:
               schema:
                 type: object
                 properties:
-                  status: { type: string, example: ok }
-                  database: { type: string, example: ok }
-                  version: { type: string, example: 0.1.0 }
+                  status:
+                    type: string
+                    example: ok
+                  database:
+                    type: string
+                    example: ok
+                  version:
+                    type: string
+                    example: 1.0.0
         '503':
           description: Banco de dados indisponível.
-
   /api/v1/cts:
     get:
-      tags: [CTs]
+      tags:
+        - CTs
       summary: Lista os centros de treinamento
       operationId: listTrainingCenters
+      security: []
       responses:
         '200':
-          description: Lista de CTs.
+          description: Registros encontrados.
           content:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/TrainingCenterSummary' }
-
+                items:
+                  $ref: '#/components/schemas/TrainingCenterSummary'
+    post:
+      tags:
+        - CTs
+      summary: Cadastra um CT
+      operationId: createTrainingCenter
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainingCenterInput'
+      responses:
+        '201':
+          description: Registro criado. O cabeçalho `Location` aponta para o novo recurso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingCenterSummary'
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /api/v1/cts/3
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /api/v1/cts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
     get:
-      tags: [CTs]
-      summary: Detalha um CT com seus espaços e times
+      tags:
+        - CTs
+      summary: Detalha um CT
       operationId: getTrainingCenter
+      security: []
+      responses:
+        '200':
+          description: Registro encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingCenterDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - CTs
+      summary: Atualiza todos os dados de um CT
+      operationId: updateTrainingCenter
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainingCenterInput'
+      responses:
+        '200':
+          description: Registro atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingCenterDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags:
+        - CTs
+      summary: Remove um CT que não sedia times
+      operationId: deleteTrainingCenter
+      security:
+        - apiKey: []
+      responses:
+        '204':
+          description: Registro removido.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          description: O CT ainda sedia times.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /api/v1/cts/{id}/espacos:
+    get:
+      tags:
+        - CTs
+      summary: Lista os espaços de um CT
+      operationId: listTrainingCenterFacilities
+      security: []
       parameters:
         - $ref: '#/components/parameters/Id'
+        - name: tipo
+          in: query
+          schema:
+            $ref: '#/components/schemas/FacilityType'
+          description: Filtra pelo tipo de espaço.
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/Limite'
       responses:
         '200':
-          description: CT encontrado.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/TrainingCenterDetail' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
-
-  /api/v1/times:
-    get:
-      tags: [Times]
-      summary: Lista os times
-      operationId: listTeams
-      responses:
-        '200':
-          description: Lista de times.
+          description: Lista paginada.
           content:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/Team' }
+                items:
+                  $ref: '#/components/schemas/Facility'
+          headers:
+            X-Total-Count:
+              $ref: '#/components/headers/XTotalCount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/espacos:
+    get:
+      tags:
+        - Espaços
+      summary: Lista os espaços dos CTs
+      operationId: listFacilities
+      security: []
+      responses:
+        '200':
+          description: Registros encontrados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Facility'
+          headers:
+            X-Total-Count:
+              $ref: '#/components/headers/XTotalCount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      parameters:
+        - name: ctId
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+          description: Filtra pelo CT.
+        - name: tipo
+          in: query
+          schema:
+            $ref: '#/components/schemas/FacilityType'
+          description: Filtra pelo tipo de espaço.
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/Limite'
     post:
-      tags: [Times]
+      tags:
+        - Espaços
+      summary: Cadastra um espaço
+      operationId: createFacility
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacilityInput'
+      responses:
+        '201':
+          description: Registro criado. O cabeçalho `Location` aponta para o novo recurso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Facility'
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /api/v1/espacos/16
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+  /api/v1/espacos/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags:
+        - Espaços
+      summary: Detalha um espaço
+      operationId: getFacility
+      security: []
+      responses:
+        '200':
+          description: Registro encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Facility'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Espaços
+      summary: Atualiza todos os dados de um espaço
+      operationId: updateFacility
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacilityInput'
+      responses:
+        '200':
+          description: Registro atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Facility'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+    delete:
+      tags:
+        - Espaços
+      summary: Remove um espaço sem treinos agendados
+      operationId: deleteFacility
+      security:
+        - apiKey: []
+      responses:
+        '204':
+          description: Registro removido.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          description: O espaço possui treinos agendados.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /api/v1/times:
+    get:
+      tags:
+        - Times
+      summary: Lista os times
+      operationId: listTeams
+      security: []
+      responses:
+        '200':
+          description: Registros encontrados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Team'
+    post:
+      tags:
+        - Times
       summary: Cadastra um time
       operationId: createTeam
       security:
@@ -111,39 +407,53 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/TeamInput' }
+            schema:
+              $ref: '#/components/schemas/TeamInput'
       responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '429': { $ref: '#/components/responses/TooManyRequests' }
         '201':
-          description: Time criado. O cabeçalho `Location` aponta para o novo recurso.
-          headers:
-            Location:
-              schema: { type: string, example: /api/v1/times/3 }
+          description: Registro criado. O cabeçalho `Location` aponta para o novo recurso.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Team' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '409': { $ref: '#/components/responses/Conflict' }
-        '422': { $ref: '#/components/responses/Unprocessable' }
-
+              schema:
+                $ref: '#/components/schemas/Team'
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /api/v1/times/3
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
   /api/v1/times/{id}:
     parameters:
       - $ref: '#/components/parameters/Id'
     get:
-      tags: [Times]
+      tags:
+        - Times
       summary: Detalha um time
       operationId: getTeam
+      security: []
       responses:
         '200':
-          description: Time encontrado.
+          description: Registro encontrado.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Team' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
+              schema:
+                $ref: '#/components/schemas/Team'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
     put:
-      tags: [Times]
+      tags:
+        - Times
       summary: Atualiza todos os dados de um time
       operationId: updateTeam
       security:
@@ -152,81 +462,204 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/TeamInput' }
+            schema:
+              $ref: '#/components/schemas/TeamInput'
       responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '429': { $ref: '#/components/responses/TooManyRequests' }
         '200':
-          description: Time atualizado.
+          description: Registro atualizado.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Team' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
-        '422': { $ref: '#/components/responses/Unprocessable' }
+              schema:
+                $ref: '#/components/schemas/Team'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
     delete:
-      tags: [Times]
+      tags:
+        - Times
       summary: Remove um time sem elenco cadastrado
       operationId: deleteTeam
       security:
         - apiKey: []
       responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '429': { $ref: '#/components/responses/TooManyRequests' }
         '204':
-          description: Time removido.
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
+          description: Registro removido.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '409':
           description: O time ainda possui jogadores cadastrados.
           content:
             application/problem+json:
-              schema: { $ref: '#/components/schemas/Problem' }
-
+              schema:
+                $ref: '#/components/schemas/Problem'
   /api/v1/times/{id}/jogadores:
     get:
-      tags: [Times]
+      tags:
+        - Times
       summary: Lista o elenco de um time
       operationId: listTeamPlayers
+      security: []
       parameters:
         - $ref: '#/components/parameters/Id'
         - $ref: '#/components/parameters/Position'
         - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/Limite'
       responses:
         '200':
-          description: Elenco do time, ordenado pelo número da camisa.
+          description: Lista paginada.
           content:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/Player' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
-
+                items:
+                  $ref: '#/components/schemas/Player'
+          headers:
+            X-Total-Count:
+              $ref: '#/components/headers/XTotalCount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/times/{id}/uniformes:
+    get:
+      tags:
+        - Times
+      summary: Lista os uniformes de um time
+      operationId: listTeamKits
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: tipo
+          in: query
+          schema:
+            $ref: '#/components/schemas/KitType'
+          description: Filtra pelo tipo de uniforme.
+        - name: temporada
+          in: query
+          schema:
+            type: integer
+            example: 2026
+          description: Filtra pela temporada.
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/Limite'
+      responses:
+        '200':
+          description: Lista paginada.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Kit'
+          headers:
+            X-Total-Count:
+              $ref: '#/components/headers/XTotalCount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/times/{id}/treinos:
+    get:
+      tags:
+        - Times
+      summary: Lista a agenda de treinos de um time
+      operationId: listTeamSessions
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: espacoId
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+          description: Filtra pelo espaço.
+        - name: data
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filtra por uma data (AAAA-MM-DD).
+        - name: de
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Data inicial do intervalo (AAAA-MM-DD).
+        - name: ate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Data final do intervalo (AAAA-MM-DD), igual ou posterior a `de`.
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/Limite'
+      responses:
+        '200':
+          description: Lista paginada.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrainingSession'
+          headers:
+            X-Total-Count:
+              $ref: '#/components/headers/XTotalCount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/jogadores:
     get:
-      tags: [Jogadores]
+      tags:
+        - Jogadores
       summary: Lista jogadores com filtros opcionais
       operationId: listPlayers
+      security: []
+      responses:
+        '200':
+          description: Registros encontrados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Player'
+          headers:
+            X-Total-Count:
+              $ref: '#/components/headers/XTotalCount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
       parameters:
         - name: timeId
           in: query
-          schema: { type: integer, minimum: 1 }
+          schema:
+            type: integer
+            minimum: 1
           description: Filtra pelo time.
         - $ref: '#/components/parameters/Position'
         - $ref: '#/components/parameters/Status'
-      responses:
-        '200':
-          description: Lista de jogadores.
-          content:
-            application/json:
-              schema:
-                type: array
-                items: { $ref: '#/components/schemas/Player' }
-        '400': { $ref: '#/components/responses/BadRequest' }
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/Limite'
     post:
-      tags: [Jogadores]
+      tags:
+        - Jogadores
       summary: Cadastra um jogador
       operationId: createPlayer
       security:
@@ -235,43 +668,57 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/PlayerInput' }
+            schema:
+              $ref: '#/components/schemas/PlayerInput'
       responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '429': { $ref: '#/components/responses/TooManyRequests' }
         '201':
-          description: Jogador criado.
-          headers:
-            Location:
-              schema: { type: string, example: /api/v1/jogadores/51 }
+          description: Registro criado. O cabeçalho `Location` aponta para o novo recurso.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Player' }
-        '400': { $ref: '#/components/responses/BadRequest' }
+              schema:
+                $ref: '#/components/schemas/Player'
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /api/v1/jogadores/51
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '409':
           description: O número da camisa já está em uso no time.
           content:
             application/problem+json:
-              schema: { $ref: '#/components/schemas/Problem' }
-        '422': { $ref: '#/components/responses/Unprocessable' }
-
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
   /api/v1/jogadores/{id}:
     parameters:
       - $ref: '#/components/parameters/Id'
     get:
-      tags: [Jogadores]
+      tags:
+        - Jogadores
       summary: Detalha um jogador
       operationId: getPlayer
+      security: []
       responses:
         '200':
-          description: Jogador encontrado.
+          description: Registro encontrado.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Player' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
+              schema:
+                $ref: '#/components/schemas/Player'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
     put:
-      tags: [Jogadores]
+      tags:
+        - Jogadores
       summary: Atualiza todos os dados de um jogador
       operationId: updatePlayer
       security:
@@ -280,33 +727,674 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/PlayerInput' }
+            schema:
+              $ref: '#/components/schemas/PlayerInput'
       responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '429': { $ref: '#/components/responses/TooManyRequests' }
         '200':
-          description: Jogador atualizado.
+          description: Registro atualizado.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Player' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
-        '422': { $ref: '#/components/responses/Unprocessable' }
+              schema:
+                $ref: '#/components/schemas/Player'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          description: O número da camisa já está em uso no time.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
     delete:
-      tags: [Jogadores]
+      tags:
+        - Jogadores
       summary: Remove um jogador
       operationId: deletePlayer
       security:
         - apiKey: []
       responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '429': { $ref: '#/components/responses/TooManyRequests' }
         '204':
-          description: Jogador removido.
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
-
+          description: Registro removido.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/tecnicos:
+    get:
+      tags:
+        - Técnicos
+      summary: Lista os técnicos
+      operationId: listCoaches
+      security: []
+      responses:
+        '200':
+          description: Registros encontrados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Coach'
+    post:
+      tags:
+        - Técnicos
+      summary: Cadastra um técnico
+      operationId: createCoach
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CoachInput'
+      responses:
+        '201':
+          description: Registro criado. O cabeçalho `Location` aponta para o novo recurso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Coach'
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /api/v1/tecnicos/3
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          description: O time informado já possui técnico.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+  /api/v1/tecnicos/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags:
+        - Técnicos
+      summary: Detalha um técnico
+      operationId: getCoach
+      security: []
+      responses:
+        '200':
+          description: Registro encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Coach'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Técnicos
+      summary: Atualiza todos os dados de um técnico
+      operationId: updateCoach
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CoachInput'
+      responses:
+        '200':
+          description: Registro atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Coach'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          description: O time informado já possui técnico.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+    delete:
+      tags:
+        - Técnicos
+      summary: Remove um técnico e sua comissão técnica
+      operationId: deleteCoach
+      security:
+        - apiKey: []
+      responses:
+        '204':
+          description: Registro removido.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+      description: Os membros da comissão técnica vinculados ao técnico também são removidos.
+  /api/v1/tecnicos/{id}/comissao:
+    get:
+      tags:
+        - Técnicos
+      summary: Lista a comissão técnica de um técnico
+      operationId: listCoachStaff
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: cargo
+          in: query
+          schema:
+            $ref: '#/components/schemas/StaffRole'
+          description: Filtra pelo cargo.
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/Limite'
+      responses:
+        '200':
+          description: Lista paginada.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StaffMember'
+          headers:
+            X-Total-Count:
+              $ref: '#/components/headers/XTotalCount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/comissao:
+    get:
+      tags:
+        - Comissão técnica
+      summary: Lista os membros das comissões técnicas
+      operationId: listStaffMembers
+      security: []
+      responses:
+        '200':
+          description: Registros encontrados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StaffMember'
+          headers:
+            X-Total-Count:
+              $ref: '#/components/headers/XTotalCount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      parameters:
+        - name: tecnicoId
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+          description: Filtra pelo técnico.
+        - name: cargo
+          in: query
+          schema:
+            $ref: '#/components/schemas/StaffRole'
+          description: Filtra pelo cargo.
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/Limite'
+    post:
+      tags:
+        - Comissão técnica
+      summary: Cadastra um membro da comissão técnica
+      operationId: createStaffMember
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffMemberInput'
+      responses:
+        '201':
+          description: Registro criado. O cabeçalho `Location` aponta para o novo recurso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffMember'
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /api/v1/comissao/21
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+  /api/v1/comissao/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags:
+        - Comissão técnica
+      summary: Detalha um membro da comissão técnica
+      operationId: getStaffMember
+      security: []
+      responses:
+        '200':
+          description: Registro encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffMember'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Comissão técnica
+      summary: Atualiza todos os dados de um membro da comissão técnica
+      operationId: updateStaffMember
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffMemberInput'
+      responses:
+        '200':
+          description: Registro atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffMember'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+    delete:
+      tags:
+        - Comissão técnica
+      summary: Remove um membro da comissão técnica
+      operationId: deleteStaffMember
+      security:
+        - apiKey: []
+      responses:
+        '204':
+          description: Registro removido.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/uniformes:
+    get:
+      tags:
+        - Uniformes
+      summary: Lista os uniformes
+      operationId: listKits
+      security: []
+      responses:
+        '200':
+          description: Registros encontrados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Kit'
+          headers:
+            X-Total-Count:
+              $ref: '#/components/headers/XTotalCount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      parameters:
+        - name: timeId
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+          description: Filtra pelo time.
+        - name: tipo
+          in: query
+          schema:
+            $ref: '#/components/schemas/KitType'
+          description: Filtra pelo tipo.
+        - name: temporada
+          in: query
+          schema:
+            type: integer
+            example: 2026
+          description: Filtra pela temporada.
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/Limite'
+    post:
+      tags:
+        - Uniformes
+      summary: Cadastra um uniforme
+      operationId: createKit
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KitInput'
+      responses:
+        '201':
+          description: Registro criado. O cabeçalho `Location` aponta para o novo recurso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kit'
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /api/v1/uniformes/13
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          description: O time já possui um uniforme deste tipo na temporada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+  /api/v1/uniformes/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags:
+        - Uniformes
+      summary: Detalha um uniforme
+      operationId: getKit
+      security: []
+      responses:
+        '200':
+          description: Registro encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kit'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Uniformes
+      summary: Atualiza todos os dados de um uniforme
+      operationId: updateKit
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KitInput'
+      responses:
+        '200':
+          description: Registro atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kit'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          description: O time já possui um uniforme deste tipo na temporada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+    delete:
+      tags:
+        - Uniformes
+      summary: Remove um uniforme
+      operationId: deleteKit
+      security:
+        - apiKey: []
+      responses:
+        '204':
+          description: Registro removido.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/treinos:
+    get:
+      tags:
+        - Treinos
+      summary: Lista a agenda de treinos
+      operationId: listTrainingSessions
+      security: []
+      responses:
+        '200':
+          description: Registros encontrados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrainingSession'
+          headers:
+            X-Total-Count:
+              $ref: '#/components/headers/XTotalCount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      parameters:
+        - name: timeId
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+          description: Filtra pelo time.
+        - name: espacoId
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+          description: Filtra pelo espaço.
+        - name: data
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filtra por uma data (AAAA-MM-DD).
+        - name: de
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Data inicial do intervalo (AAAA-MM-DD).
+        - name: ate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Data final do intervalo (AAAA-MM-DD), igual ou posterior a `de`.
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/Limite'
+    post:
+      tags:
+        - Treinos
+      summary: Cadastra um treino
+      operationId: createTrainingSession
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainingSessionInput'
+      responses:
+        '201':
+          description: Registro criado. O cabeçalho `Location` aponta para o novo recurso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingSession'
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /api/v1/treinos/14
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          description: O espaço já está ocupado por outro treino nesse horário.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+      description: O espaço deve pertencer ao CT do time e o uniforme, quando informado, deve ser do próprio time (422). Dois treinos
+        não podem ocupar o mesmo espaço em horários sobrepostos na mesma data (409).
+  /api/v1/treinos/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags:
+        - Treinos
+      summary: Detalha um treino
+      operationId: getTrainingSession
+      security: []
+      responses:
+        '200':
+          description: Registro encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Treinos
+      summary: Atualiza todos os dados de um treino
+      operationId: updateTrainingSession
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainingSessionInput'
+      responses:
+        '200':
+          description: Registro atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '409':
+          description: O espaço já está ocupado por outro treino nesse horário.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+    delete:
+      tags:
+        - Treinos
+      summary: Remove um treino
+      operationId: deleteTrainingSession
+      security:
+        - apiKey: []
+      responses:
+        '204':
+          description: Registro removido.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 components:
   securitySchemes:
     apiKey:
@@ -314,31 +1402,57 @@ components:
       in: header
       name: X-API-Key
       description: Chave exigida nas operações de escrita (POST, PUT e DELETE).
-
+  headers:
+    XTotalCount:
+      description: Total de registros que atendem aos filtros, sem a paginação.
+      schema:
+        type: integer
+        example: 25
   parameters:
     Id:
       name: id
       in: path
       required: true
-      schema: { type: integer, minimum: 1 }
+      schema:
+        type: integer
+        minimum: 1
       description: Identificador numérico do recurso.
+    Pagina:
+      name: pagina
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: Número da página.
+    Limite:
+      name: limite
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+      description: Quantidade de registros por página.
     Position:
       name: posicao
       in: query
-      schema: { $ref: '#/components/schemas/Position' }
+      schema:
+        $ref: '#/components/schemas/Position'
       description: Filtra pela posição.
     Status:
       name: situacao
       in: query
-      schema: { $ref: '#/components/schemas/PlayerStatus' }
+      schema:
+        $ref: '#/components/schemas/PlayerStatus'
       description: Filtra pela situação do atleta.
-
   responses:
     BadRequest:
-      description: Requisição inválida (JSON malformado ou campos inválidos).
+      description: Requisição inválida (JSON malformado, parâmetros ou campos inválidos).
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
+          schema:
+            $ref: '#/components/schemas/Problem'
           example:
             type: about:blank
             title: Dados inválidos
@@ -352,7 +1466,8 @@ components:
       description: Recurso não encontrado.
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
+          schema:
+            $ref: '#/components/schemas/Problem'
           example:
             type: about:blank
             title: Recurso não encontrado
@@ -363,10 +1478,13 @@ components:
       description: Chave de API ausente ou inválida.
       headers:
         WWW-Authenticate:
-          schema: { type: string, example: 'ApiKey header="X-API-Key"' }
+          schema:
+            type: string
+            example: ApiKey header="X-API-Key"
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
+          schema:
+            $ref: '#/components/schemas/Problem'
           example:
             type: about:blank
             title: Não autenticado
@@ -377,150 +1495,594 @@ components:
       description: Limite de requisições atingido.
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
+          schema:
+            $ref: '#/components/schemas/Problem'
     Conflict:
       description: Conflito com o estado atual (valor único já usado).
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
+          schema:
+            $ref: '#/components/schemas/Problem'
     Unprocessable:
       description: Regra de negócio violada (por exemplo, referência a um registro inexistente).
       content:
         application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
-
+          schema:
+            $ref: '#/components/schemas/Problem'
   schemas:
     Problem:
       type: object
       description: Detalhes de erro conforme a RFC 9457.
-      required: [type, title, status]
+      required:
+        - type
+        - title
+        - status
       properties:
-        type: { type: string, example: about:blank }
-        title: { type: string }
-        status: { type: integer }
-        detail: { type: string }
-        instance: { type: string }
+        type:
+          type: string
+          example: about:blank
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
         errors:
           type: array
           items:
             type: object
             properties:
-              field: { type: string }
-              message: { type: string }
-
+              field:
+                type: string
+              message:
+                type: string
     FacilityType:
       type: string
-      enum: [CAMPO, ACADEMIA, PISCINA, AUDITORIO, SALA_ANALISE, DEPARTAMENTO_MEDICO, REFEITORIO, ALOJAMENTO]
+      enum:
+        - CAMPO
+        - ACADEMIA
+        - PISCINA
+        - AUDITORIO
+        - SALA_ANALISE
+        - DEPARTAMENTO_MEDICO
+        - REFEITORIO
+        - ALOJAMENTO
     TeamCategory:
       type: string
-      enum: [MASCULINO, FEMININO]
+      enum:
+        - MASCULINO
+        - FEMININO
     Position:
       type: string
-      enum: [GOLEIRO, ZAGUEIRO, LATERAL, VOLANTE, MEIA, ATACANTE]
+      enum:
+        - GOLEIRO
+        - ZAGUEIRO
+        - LATERAL
+        - VOLANTE
+        - MEIA
+        - ATACANTE
     PreferredFoot:
       type: string
-      enum: [DIREITO, ESQUERDO, AMBIDESTRO]
+      enum:
+        - DIREITO
+        - ESQUERDO
+        - AMBIDESTRO
     PlayerStatus:
       type: string
-      enum: [DISPONIVEL, EM_TRATAMENTO, SUSPENSO]
-
-    TrainingCenterBase:
+      enum:
+        - DISPONIVEL
+        - EM_TRATAMENTO
+        - SUSPENSO
+    StaffRole:
+      type: string
+      enum:
+        - AUXILIAR_TECNICO
+        - PREPARADOR_FISICO
+        - PREPARADOR_GOLEIROS
+        - ANALISTA_DESEMPENHO
+        - FISIOLOGISTA
+        - MEDICO
+        - FISIOTERAPEUTA
+        - NUTRICIONISTA
+        - PSICOLOGO
+        - ROUPEIRO
+    KitType:
+      type: string
+      enum:
+        - JOGO_1
+        - JOGO_2
+        - JOGO_3
+        - GOLEIRO
+        - TREINO
+        - VIAGEM
+    SessionType:
+      type: string
+      enum:
+        - TATICO
+        - TECNICO
+        - FISICO
+        - REGENERATIVO
+        - BOLA_PARADA
+    TrainingCenterInput:
       type: object
+      required:
+        - name
+        - city
+        - address
       properties:
-        id: { type: integer, example: 1 }
-        name: { type: string, example: CT Parque Gigante }
-        city: { type: string, example: Porto Alegre }
-        address: { type: string, example: 'Av. Padre Cacique, 891, Praia de Belas, Porto Alegre - RS, 90810-240' }
-        areaHa: { type: [number, 'null'], example: 7 }
-        openedYear: { type: [integer, 'null'], example: 2005 }
+        name:
+          type: string
+          minLength: 3
+          maxLength: 120
+          example: CT Parque Gigante
+        city:
+          type: string
+          minLength: 2
+          maxLength: 80
+          example: Porto Alegre
+        address:
+          type: string
+          minLength: 3
+          maxLength: 200
+          example: Av. Padre Cacique, 891, Praia de Belas, Porto Alegre - RS, 90810-240
+        areaHa:
+          type:
+            - number
+            - 'null'
+          exclusiveMinimum: 0
+          maximum: 1000
+          example: 7
+        openedYear:
+          type:
+            - integer
+            - 'null'
+          minimum: 1900
+          maximum: 2100
+          example: 2005
     TrainingCenterSummary:
       allOf:
-        - $ref: '#/components/schemas/TrainingCenterBase'
         - type: object
           properties:
-            facilitiesCount: { type: integer, example: 9 }
-            teamsCount: { type: integer, example: 1 }
+            id:
+              type: integer
+              example: 1
+        - $ref: '#/components/schemas/TrainingCenterInput'
+        - type: object
+          properties:
+            facilitiesCount:
+              type: integer
+              example: 9
+            teamsCount:
+              type: integer
+              example: 1
     TrainingCenterDetail:
       allOf:
-        - $ref: '#/components/schemas/TrainingCenterBase'
+        - type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+        - $ref: '#/components/schemas/TrainingCenterInput'
         - type: object
           properties:
             facilities:
               type: array
-              items: { $ref: '#/components/schemas/Facility' }
+              items:
+                $ref: '#/components/schemas/Facility'
             teams:
               type: array
               items:
                 type: object
                 properties:
-                  id: { type: integer }
-                  name: { type: string }
-                  category: { $ref: '#/components/schemas/TeamCategory' }
-                  nickname: { type: [string, 'null'] }
-    Facility:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  category:
+                    $ref: '#/components/schemas/TeamCategory'
+                  nickname:
+                    type:
+                      - string
+                      - 'null'
+    FacilityInput:
       type: object
+      required:
+        - name
+        - type
+        - trainingCenterId
       properties:
-        id: { type: integer, example: 1 }
-        name: { type: string, example: Campo 1 }
-        type: { $ref: '#/components/schemas/FacilityType' }
-        capacity: { type: [integer, 'null'], example: 40 }
-        trainingCenterId: { type: integer, example: 1 }
-
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+          example: Campo 1
+        type:
+          $ref: '#/components/schemas/FacilityType'
+        capacity:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+          maximum: 10000
+          example: 40
+        trainingCenterId:
+          type: integer
+          example: 1
+    Facility:
+      allOf:
+        - type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+        - $ref: '#/components/schemas/FacilityInput'
+        - type: object
+          properties:
+            trainingCenter:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                name:
+                  type: string
+                  example: CT Parque Gigante
     TeamInput:
       type: object
-      required: [name, category, trainingCenterId]
+      required:
+        - name
+        - category
+        - trainingCenterId
       properties:
-        name: { type: string, minLength: 3, maxLength: 120, example: Internacional (feminino) }
-        category: { $ref: '#/components/schemas/TeamCategory' }
-        nickname: { type: [string, 'null'], maxLength: 80, example: Gurias Coloradas }
+        name:
+          type: string
+          minLength: 3
+          maxLength: 120
+          example: Internacional (feminino)
+        category:
+          $ref: '#/components/schemas/TeamCategory'
+        nickname:
+          type:
+            - string
+            - 'null'
+          maxLength: 80
+          example: Gurias Coloradas
         competitions:
           type: array
           maxItems: 10
-          items: { type: string }
-          example: [Campeonato Brasileiro Feminino A1, Campeonato Gaúcho Feminino]
-        trainingCenterId: { type: integer, example: 2 }
+          items:
+            type: string
+          example:
+            - Campeonato Brasileiro Feminino A1
+            - Campeonato Gaúcho Feminino
+        trainingCenterId:
+          type: integer
+          example: 2
     Team:
       allOf:
         - type: object
           properties:
-            id: { type: integer, example: 2 }
+            id:
+              type: integer
+              example: 2
         - $ref: '#/components/schemas/TeamInput'
         - type: object
           properties:
             trainingCenter:
               type: object
               properties:
-                id: { type: integer, example: 2 }
-                name: { type: string, example: CT Morada dos Quero-Queros }
+                id:
+                  type: integer
+                  example: 2
+                name:
+                  type: string
+                  example: CT Morada dos Quero-Queros
             coach:
-              type: [object, 'null']
+              type:
+                - object
+                - 'null'
               properties:
-                id: { type: integer }
-                name: { type: string }
-            playersCount: { type: integer, example: 25 }
-
+                id:
+                  type: integer
+                name:
+                  type: string
+            playersCount:
+              type: integer
+              example: 25
     PlayerInput:
       type: object
-      required: [name, shirtName, number, position, preferredFoot, birthDate, teamId]
+      required:
+        - name
+        - shirtName
+        - number
+        - position
+        - preferredFoot
+        - birthDate
+        - teamId
       properties:
-        name: { type: string, minLength: 3, maxLength: 120, example: Carolina Vieira Mattos }
-        shirtName: { type: string, minLength: 2, maxLength: 40, example: Carol Vieira }
-        number: { type: integer, minimum: 1, maximum: 99, example: 10 }
-        position: { $ref: '#/components/schemas/Position' }
-        preferredFoot: { $ref: '#/components/schemas/PreferredFoot' }
-        birthDate: { type: string, format: date, example: '1997-07-28' }
-        status: { $ref: '#/components/schemas/PlayerStatus' }
-        teamId: { type: integer, example: 2 }
+        name:
+          type: string
+          minLength: 3
+          maxLength: 120
+          example: Carolina Vieira Mattos
+        shirtName:
+          type: string
+          minLength: 2
+          maxLength: 40
+          example: Carol Vieira
+        number:
+          type: integer
+          minimum: 1
+          maximum: 99
+          example: 10
+        position:
+          $ref: '#/components/schemas/Position'
+        preferredFoot:
+          $ref: '#/components/schemas/PreferredFoot'
+        birthDate:
+          type: string
+          format: date
+          description: Não pode estar no futuro.
+          example: '1997-07-28'
+        status:
+          $ref: '#/components/schemas/PlayerStatus'
+        teamId:
+          type: integer
+          example: 2
     Player:
       allOf:
         - type: object
           properties:
-            id: { type: integer, example: 41 }
+            id:
+              type: integer
+              example: 41
         - $ref: '#/components/schemas/PlayerInput'
         - type: object
           properties:
             team:
               type: object
               properties:
-                id: { type: integer, example: 2 }
-                name: { type: string, example: Internacional (feminino) }
+                id:
+                  type: integer
+                  example: 2
+                name:
+                  type: string
+                  example: Internacional (feminino)
+    CoachInput:
+      type: object
+      required:
+        - name
+        - nationality
+        - contractStart
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 120
+          example: Marcelo Antunes Guedes
+        nationality:
+          type: string
+          minLength: 2
+          maxLength: 60
+          example: Brasil
+        license:
+          type:
+            - string
+            - 'null'
+          maxLength: 40
+          example: CBF Licença PRO
+        contractStart:
+          type: string
+          format: date
+          example: '2026-03-10'
+        teamId:
+          type:
+            - integer
+            - 'null'
+          example: 1
+          description: Time dirigido. Cada time aceita um único técnico.
+    Coach:
+      allOf:
+        - type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+        - $ref: '#/components/schemas/CoachInput'
+        - type: object
+          properties:
+            team:
+              type:
+                - object
+                - 'null'
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                name:
+                  type: string
+                  example: Internacional (masculino)
+                category:
+                  $ref: '#/components/schemas/TeamCategory'
+            staffCount:
+              type: integer
+              example: 11
+    StaffMemberInput:
+      type: object
+      required:
+        - name
+        - role
+        - coachId
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 120
+          example: Fábio Rech
+        role:
+          $ref: '#/components/schemas/StaffRole'
+        coachId:
+          type: integer
+          example: 1
+    StaffMember:
+      allOf:
+        - type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+        - $ref: '#/components/schemas/StaffMemberInput'
+        - type: object
+          properties:
+            coach:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                name:
+                  type: string
+                  example: Marcelo Antunes Guedes
+                teamId:
+                  type:
+                    - integer
+                    - 'null'
+                  example: 1
+    KitInput:
+      type: object
+      required:
+        - type
+        - season
+        - colors
+        - supplier
+        - teamId
+      properties:
+        type:
+          $ref: '#/components/schemas/KitType'
+        season:
+          type: integer
+          minimum: 1909
+          maximum: 2100
+          example: 2026
+        colors:
+          type: string
+          minLength: 3
+          maxLength: 120
+          example: Vermelho com gola e detalhes brancos
+        supplier:
+          type: string
+          minLength: 2
+          maxLength: 60
+          example: Adidas
+        teamId:
+          type: integer
+          example: 1
+    Kit:
+      allOf:
+        - type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+        - $ref: '#/components/schemas/KitInput'
+        - type: object
+          properties:
+            team:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                name:
+                  type: string
+                  example: Internacional (masculino)
+    TrainingSessionInput:
+      type: object
+      required:
+        - date
+        - startTime
+        - endTime
+        - type
+        - teamId
+        - facilityId
+      properties:
+        date:
+          type: string
+          format: date
+          example: '2026-11-16'
+        startTime:
+          type: string
+          pattern: ^([01]\d|2[0-3]):[0-5]\d$
+          example: 09:00
+        endTime:
+          type: string
+          pattern: ^([01]\d|2[0-3]):[0-5]\d$
+          description: Deve ser posterior a startTime.
+          example: '10:00'
+        type:
+          $ref: '#/components/schemas/SessionType'
+        notes:
+          type:
+            - string
+            - 'null'
+          maxLength: 500
+          example: Atletas que atuaram mais de 60 minutos no último jogo
+        teamId:
+          type: integer
+          example: 1
+        facilityId:
+          type: integer
+          example: 4
+          description: Espaço do CT em que o time treina.
+        kitId:
+          type:
+            - integer
+            - 'null'
+          example: null
+          description: Uniforme do próprio time.
+    TrainingSession:
+      allOf:
+        - type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+        - $ref: '#/components/schemas/TrainingSessionInput'
+        - type: object
+          properties:
+            team:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                name:
+                  type: string
+                  example: Internacional (masculino)
+            facility:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 4
+                name:
+                  type: string
+                  example: Piscina térmica e hidroterapia
+                type:
+                  $ref: '#/components/schemas/FacilityType'
+                trainingCenterId:
+                  type: integer
+                  example: 1
+            kit:
+              type:
+                - object
+                - 'null'
+              properties:
+                id:
+                  type: integer
+                type:
+                  $ref: '#/components/schemas/KitType'
+                colors:
+                  type: string
