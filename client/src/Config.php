@@ -13,6 +13,7 @@ final class Config
         public readonly string $apiBaseUrl,
         public readonly ?string $apiKey,
         public readonly ?string $adminPasswordHash,
+        public readonly ?string $adminPassword,
         public readonly bool $production,
     ) {
     }
@@ -28,6 +29,7 @@ final class Config
             apiBaseUrl: rtrim($read('API_BASE_URL') ?? 'http://localhost:3000', '/'),
             apiKey: $read('API_KEY'),
             adminPasswordHash: $read('ADMIN_PASSWORD_HASH'),
+            adminPassword: $read('ADMIN_PASSWORD'),
             production: ($read('APP_ENV') ?? 'production') === 'production',
         );
     }

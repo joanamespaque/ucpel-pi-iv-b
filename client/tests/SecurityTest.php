@@ -47,6 +47,17 @@ final class SecurityTest extends TestCase
         self::assertTrue($auth->check());
     }
 
+    #[RunInSeparateProcess]
+    public function testSenhaEmTextoDaVariavelDeAmbienteTambemEhAceita(): void
+    {
+        session_start();
+        $auth = new Auth(null, 'valor-gerado');
+
+        self::assertTrue($auth->enabled());
+        self::assertFalse($auth->attempt('valor-errado'));
+        self::assertTrue($auth->attempt('valor-gerado'));
+    }
+
     public function testCincoTentativasErradasBloqueiamNovasTentativas(): void
     {
         $auth = new Auth(password_hash('senha-de-teste', PASSWORD_DEFAULT));

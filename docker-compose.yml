@@ -33,7 +33,7 @@ services:
     environment:
       API_BASE_URL: http://api:3000
       API_KEY: ${API_KEY:-chave-local-dev}
-      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin-local}
       APP_ENV: development
     ports:
       - '127.0.0.1:8080:80'

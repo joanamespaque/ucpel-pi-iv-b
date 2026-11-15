@@ -29,7 +29,7 @@ final class App
     public function __construct(private readonly Config $config, ?ApiClient $api = null)
     {
         $api ??= new ApiClient($config->apiBaseUrl, $config->apiKey);
-        $auth = new Auth($config->adminPasswordHash);
+        $auth = new Auth($config->adminPasswordHash, $config->adminPassword);
         $this->view = new View(dirname(__DIR__) . '/views');
         $this->view->share('auth', $auth);
 
