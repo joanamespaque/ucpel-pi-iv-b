@@ -3,6 +3,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --ignore-scripts
 COPY . .
-RUN npx prisma generate
+RUN npx prisma generate && chown -R node:node /app
+USER node
 EXPOSE 3000
 CMD ["sh", "-c", "npx prisma migrate deploy && node prisma/seed.js && node src/server.js"]
