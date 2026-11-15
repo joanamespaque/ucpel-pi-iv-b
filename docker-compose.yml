@@ -1,0 +1,32 @@
+# Ambiente completo para execução local: banco de dados e API.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: interct
+      POSTGRES_PASSWORD: interct
+      POSTGRES_DB: interct
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U interct']
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ./api
+    environment:
+      DATABASE_URL: postgresql://interct:interct@db:5432/interct?schema=public
+      PORT: 3000
+      API_KEY: ${API_KEY:-chave-local-dev}
+      NODE_ENV: development
+    ports:
+      - '127.0.0.1:3000:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

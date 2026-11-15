@@ -1,0 +1,23 @@
+flowchart LR
+  G(["Coordenação do CT"])
+  T(["Comissão técnica"])
+  D(["Desenvolvedor<br/>integrador"])
+  subgraph SYS["InterCT API"]
+    UC1(["Consultar CTs e espaços"])
+    UC2(["Gerenciar times"])
+    UC3(["Gerenciar jogadores"])
+    UC4(["Consultar elenco do time"])
+    UC5(["Filtrar jogadores por<br/>posição e situação"])
+    UC6(["Validar dados da requisição"])
+    UC7(["Consultar documentação da API"])
+  end
+  G --- UC1
+  G --- UC2
+  G --- UC3
+  T --- UC4
+  T --- UC5
+  T --- UC3
+  D --- UC7
+  UC2 -. "«include»" .-> UC6
+  UC3 -. "«include»" .-> UC6
+  UC4 -. "«extend»" .-> UC5

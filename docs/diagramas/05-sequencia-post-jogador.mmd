@@ -1,0 +1,34 @@
+sequenceDiagram
+  autonumber
+  actor C as Cliente
+  participant R as playerRoutes
+  participant V as validate(playerBodySchema)
+  participant CT as playerController
+  participant S as playerService
+  participant RP as playerRepository
+  participant DB as PostgreSQL
+  C->>R: POST /api/v1/jogadores (JSON)
+  R->>V: valida o corpo
+  alt corpo inválido
+    V-->>C: 400 Problem Details com erros por campo
+  else corpo válido
+    V->>CT: req.validated.body
+    CT->>S: create(body)
+    S->>DB: SELECT count(*) FROM teams WHERE id = teamId
+    alt time inexistente
+      S-->>C: 422 Regra de negócio violada
+    else time existe
+      S->>RP: findByNumber(teamId, number)
+      RP->>DB: SELECT ... WHERE team_id, number
+      alt número já usado no time
+        S-->>C: 409 Conflito
+      else número livre
+        S->>RP: create(data)
+        RP->>DB: INSERT INTO players
+        DB-->>RP: registro criado
+        RP-->>S: jogador + time
+        S-->>CT: jogador formatado
+        CT-->>C: 201 Created + Location + JSON
+      end
+    end
+  end
