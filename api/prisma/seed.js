@@ -210,6 +210,74 @@ async function main() {
     data: [...MEN_PLAYERS.map((p) => toPlayer(p, men.id)), ...WOMEN_PLAYERS.map((p) => toPlayer(p, women.id))],
   });
 
+  // Uniformes da temporada 2026, com cores baseadas nos lançamentos públicos do fornecedor.
+  const kitsFor = (teamId) =>
+    [
+      { type: 'JOGO_1', colors: 'Vermelho com gola e detalhes brancos' },
+      { type: 'JOGO_2', colors: 'Branco com detalhes dourados' },
+      { type: 'JOGO_3', colors: 'Vermelho escuro com detalhes dourados' },
+      { type: 'GOLEIRO', colors: 'Verde-limão com detalhes pretos' },
+      { type: 'TREINO', colors: 'Vermelho e cinza' },
+      { type: 'VIAGEM', colors: 'Preto com detalhes vermelhos' },
+    ].map((kit) => ({ ...kit, season: 2026, supplier: 'Adidas', teamId }));
+  await prisma.kit.createMany({ data: [...kitsFor(men.id), ...kitsFor(women.id)] });
+
+  const trainingKit = async (teamId) => (await prisma.kit.findFirst({ where: { teamId, type: 'TREINO', season: 2026 } })).id;
+  const facility = async (trainingCenterId, name) => (await prisma.facility.findFirst({ where: { trainingCenterId, name } })).id;
+  const menKit = await trainingKit(men.id);
+  const womenKit = await trainingKit(women.id);
+  const pg = {
+    campo1: await facility(parqueGigante.id, 'Campo 1'),
+    campo2: await facility(parqueGigante.id, 'Campo 2'),
+    academia: await facility(parqueGigante.id, 'Academia'),
+    piscina: await facility(parqueGigante.id, 'Piscina térmica e hidroterapia'),
+    analise: await facility(parqueGigante.id, 'Sala de análise de desempenho'),
+  };
+  const alv = {
+    campoA: await facility(alvorada.id, 'Campo A'),
+    campoB: await facility(alvorada.id, 'Campo B'),
+    academia: await facility(alvorada.id, 'Academia'),
+    analise: await facility(alvorada.id, 'Sala de análise de desempenho'),
+  };
+
+  // Agenda de uma semana de treinos (16 a 20 de novembro de 2026).
+  const session = (date, startTime, endTime, type, teamId, facilityId, kitId, notes = null) => ({
+    date: new Date(date),
+    startTime,
+    endTime,
+    type,
+    teamId,
+    facilityId,
+    kitId,
+    notes,
+  });
+  await prisma.trainingSession.createMany({
+    data: [
+      session(
+        '2026-11-16',
+        '09:00',
+        '10:00',
+        'REGENERATIVO',
+        men.id,
+        pg.piscina,
+        null,
+        'Atletas que atuaram mais de 60 minutos no último jogo',
+      ),
+      session('2026-11-16', '10:30', '12:00', 'FISICO', men.id, pg.academia, menKit),
+      session('2026-11-17', '09:30', '11:30', 'TATICO', men.id, pg.campo1, menKit, 'Organização defensiva e transição'),
+      session('2026-11-17', '15:00', '16:00', 'TECNICO', men.id, pg.analise, null, 'Análise em vídeo do próximo adversário'),
+      session('2026-11-18', '09:30', '11:00', 'BOLA_PARADA', men.id, pg.campo2, menKit),
+      session('2026-11-19', '09:30', '11:30', 'TATICO', men.id, pg.campo1, menKit, 'Treino fechado à imprensa'),
+      session('2026-11-20', '10:00', '11:00', 'TECNICO', men.id, pg.campo1, menKit, 'Ajustes finais antes da concentração'),
+      session('2026-11-16', '08:30', '10:00', 'FISICO', women.id, alv.academia, womenKit),
+      session('2026-11-17', '08:30', '10:30', 'TATICO', women.id, alv.campoA, womenKit, 'Pressão pós-perda'),
+      session('2026-11-18', '08:30', '10:00', 'TECNICO', women.id, alv.campoB, womenKit),
+      session('2026-11-18', '14:00', '15:00', 'TECNICO', women.id, alv.analise, null, 'Análise de desempenho da rodada'),
+      session('2026-11-19', '08:30', '10:00', 'BOLA_PARADA', women.id, alv.campoA, womenKit),
+      session('2026-11-20', '09:00', '10:00', 'REGENERATIVO', women.id, alv.campoB, womenKit),
+    ],
+  });
+
   // Situações variadas para demonstrar os filtros da API.
   await prisma.player.updateMany({ where: { teamId: men.id, number: 3 }, data: { status: 'EM_TRATAMENTO' } });
   await prisma.player.updateMany({ where: { teamId: men.id, number: 8 }, data: { status: 'SUSPENSO' } });
