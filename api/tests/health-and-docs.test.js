@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { api } from './helpers.js';
+import { api, auth } from './helpers.js';
 
 describe('Infraestrutura', () => {
   it('GET /health informa API e banco disponíveis', async () => {
@@ -22,7 +22,7 @@ describe('Infraestrutura', () => {
   });
 
   it('JSON malformado responde 400', async () => {
-    const res = await api.post('/api/v1/times').set('Content-Type', 'application/json').send('{"name":');
+    const res = await api.post('/api/v1/times').set(auth).set('Content-Type', 'application/json').send('{"name":');
     expect(res.status).toBe(400);
     expect(res.body.title).toBe('JSON malformado');
   });
