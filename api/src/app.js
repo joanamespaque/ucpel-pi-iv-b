@@ -7,9 +7,19 @@ import './lib/zod-locale.js';
 import { docsRoutes } from './docs.js';
 import { prisma } from './lib/prisma.js';
 import { errorHandler, notFoundHandler } from './middlewares/error-handler.js';
+import { generalLimiter, writeLimiter } from './middlewares/rate-limit.js';
 import { apiRoutes } from './routes.js';
 
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+
+/**
+ * Define as origens autorizadas pelo CORS. Em produção, sem CORS_ORIGINS
+ * configurada, nenhuma origem externa é aceita.
+ */
+function corsOrigin() {
+  if (env.corsOrigins.length) return env.corsOrigins;
+  return env.nodeEnv === 'production' ? false : '*';
+}
 
 /**
  * Cria a aplicação Express com middlewares, rotas e tratamento de erros.
@@ -18,9 +28,22 @@ const { version } = JSON.parse(readFileSync(new URL('../package.json', import.me
 export function createApp() {
   const app = express();
 
-  // O Swagger UI usa scripts e estilos inline; a CSP padrão do Helmet os bloquearia.
-  app.use(helmet({ contentSecurityPolicy: false }));
-  app.use(cors({ origin: env.corsOrigins.length ? env.corsOrigins : '*' }));
+  // O Render encaminha as requisições por um proxy; o IP real vem no X-Forwarded-For.
+  app.set('trust proxy', 1);
+
+  app.use(
+    cors({
+      origin: corsOrigin(),
+      methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      allowedHeaders: ['Content-Type', 'X-API-Key'],
+      maxAge: 600,
+    }),
+  );
+
+  // O Swagger UI usa scripts e estilos inline, por isso a CSP fica desativada apenas em /docs.
+  app.use('/docs', helmet({ contentSecurityPolicy: false }), docsRoutes);
+  app.use(helmet());
+
   app.use(express.json({ limit: '100kb' }));
 
   app.get('/', (_req, res) => res.redirect('/docs'));
@@ -34,7 +57,7 @@ export function createApp() {
     }
   });
 
-  app.use('/docs', docsRoutes);
+  app.use('/api', generalLimiter, writeLimiter);
   app.use('/api/v1', apiRoutes);
 
   app.use(notFoundHandler);

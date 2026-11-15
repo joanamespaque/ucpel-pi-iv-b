@@ -9,7 +9,7 @@ import { HttpError } from '../lib/http-error.js';
 function fromPrisma(error) {
   switch (error.code) {
     case 'P2002':
-      return HttpError.conflict(`Já existe um registro com o mesmo valor em: ${[].concat(error.meta?.target ?? []).join(', ')}.`);
+      return HttpError.conflict('Já existe um registro com estes dados.');
     case 'P2003':
       return HttpError.unprocessable('Um dos identificadores informados não corresponde a um registro existente.');
     case 'P2025':
