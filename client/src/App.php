@@ -15,6 +15,7 @@ use InterCT\Client\Http\ApiClient;
 use InterCT\Client\Http\ApiException;
 use InterCT\Client\Security\Auth;
 use InterCT\Client\Security\Csrf;
+use InterCT\Client\Security\LoginThrottle;
 use InterCT\Client\Support\Flash;
 use Throwable;
 
@@ -29,7 +30,13 @@ final class App
     public function __construct(private readonly Config $config, ?ApiClient $api = null)
     {
         $api ??= new ApiClient($config->apiBaseUrl, $config->apiKey);
-        $auth = new Auth($config->adminPasswordHash, $config->adminPassword);
+        $auth = new Auth(
+            $config->adminPasswordHash,
+            $config->adminPassword,
+            $config->production,
+            LoginThrottle::inTempDir(),
+            self::clientIp($config->production),
+        );
         $this->view = new View(dirname(__DIR__) . '/views');
         $this->view->share('auth', $auth);
 
@@ -122,9 +129,24 @@ final class App
         $referer = (string) ($_SERVER['HTTP_REFERER'] ?? '');
         $path = parse_url($referer, PHP_URL_PATH);
         $host = parse_url($referer, PHP_URL_HOST);
-        $target = is_string($path) && ($host === null || $host === ($_SERVER['HTTP_HOST'] ?? null)) ? $path : '/';
+        $sameHost = $host === null || $host === ($_SERVER['HTTP_HOST'] ?? null);
+        $target = is_string($path) && $sameHost && str_starts_with($path, '/') && !str_starts_with($path, '//') ? $path : '/';
         header('Location: ' . $target, true, 303);
         return '';
+    }
+
+    /**
+     * IP do visitante. Em produção, atrás do proxy reverso da hospedagem, usa o último endereço de
+     * X-Forwarded-For, que é o acrescentado pelo próprio proxy.
+     */
+    private static function clientIp(bool $behindProxy): string
+    {
+        $forwarded = (string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? '');
+        if ($behindProxy && $forwarded !== '') {
+            $parts = array_map('trim', explode(',', $forwarded));
+            return (string) end($parts);
+        }
+        return (string) ($_SERVER['REMOTE_ADDR'] ?? '');
     }
 
     /**
@@ -148,8 +170,11 @@ final class App
     /**
      * Cabeçalhos de segurança enviados em todas as respostas.
      */
-    public static function securityHeaders(): void
+    public static function securityHeaders(bool $https = false): void
     {
+        if ($https) {
+            header('Strict-Transport-Security: max-age=31536000');
+        }
         header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'");
         header('X-Content-Type-Options: nosniff');
         header('X-Frame-Options: DENY');
