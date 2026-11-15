@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>InterCT API · Documentação</title>
+    <meta name="description" content="Documentação OpenAPI da InterCT API, projeto acadêmico de organização do CT do Sport Club Internacional." />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui.css" />
+    <style>
+      body { margin: 0; background: #fafafa; }
+      .aviso { background: #b30000; color: #fff; font: 14px/1.5 system-ui, sans-serif; padding: 10px 16px; }
+      .aviso a { color: #fff; }
+    </style>
+  </head>
+  <body>
+    <p class="aviso">
+      Projeto acadêmico (UCPel, Projeto Integrador IV-B). Os nomes de jogadores e profissionais são ilustrativos.
+      A API hospedada no plano gratuito do Render pode levar cerca de 1 minuto para responder à primeira requisição.
+      Código-fonte: <a href="https://github.com/joanamespaque/ucpel-pi-iv-b">github.com/joanamespaque/ucpel-pi-iv-b</a>.
+    </p>
+    <div id="swagger-ui"></div>
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
+    <script>
+      window.ui = SwaggerUIBundle({ url: './openapi.yaml', dom_id: '#swagger-ui', deepLinking: true });
+    </script>
+  </body>
+</html>

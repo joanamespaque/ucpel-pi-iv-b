@@ -1,0 +1,469 @@
+openapi: 3.1.0
+info:
+  title: InterCT API
+  version: 0.1.0
+  summary: API REST para a organização do centro de treinamento do Sport Club Internacional.
+  description: |
+    API desenvolvida no Projeto Integrador IV-B (UCPel) para organizar os
+    centros de treinamento, os times principais (masculino e feminino) e seus
+    elencos.
+
+    **Dados ilustrativos:** a estrutura dos CTs reproduz informações públicas
+    do clube, mas os nomes de jogadores e profissionais são fictícios.
+
+    Todas as respostas usam JSON. Erros seguem o formato Problem Details
+    (RFC 9457), com o tipo de mídia `application/problem+json`.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: https://interct-api.onrender.com
+    description: Produção (Render)
+  - url: http://localhost:3000
+    description: Ambiente local
+tags:
+  - name: CTs
+    description: Centros de treinamento e seus espaços.
+  - name: Times
+    description: Times principais e seus elencos.
+  - name: Jogadores
+    description: Cadastro de jogadores e jogadoras.
+  - name: Infraestrutura
+    description: Estado da API.
+
+paths:
+  /health:
+    get:
+      tags: [Infraestrutura]
+      summary: Verifica a API e a conexão com o banco
+      operationId: getHealth
+      responses:
+        '200':
+          description: API e banco disponíveis.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  database: { type: string, example: ok }
+                  version: { type: string, example: 0.1.0 }
+        '503':
+          description: Banco de dados indisponível.
+
+  /api/v1/cts:
+    get:
+      tags: [CTs]
+      summary: Lista os centros de treinamento
+      operationId: listTrainingCenters
+      responses:
+        '200':
+          description: Lista de CTs.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TrainingCenterSummary' }
+
+  /api/v1/cts/{id}:
+    get:
+      tags: [CTs]
+      summary: Detalha um CT com seus espaços e times
+      operationId: getTrainingCenter
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: CT encontrado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrainingCenterDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/times:
+    get:
+      tags: [Times]
+      summary: Lista os times
+      operationId: listTeams
+      responses:
+        '200':
+          description: Lista de times.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Team' }
+    post:
+      tags: [Times]
+      summary: Cadastra um time
+      operationId: createTeam
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TeamInput' }
+      responses:
+        '201':
+          description: Time criado. O cabeçalho `Location` aponta para o novo recurso.
+          headers:
+            Location:
+              schema: { type: string, example: /api/v1/times/3 }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Team' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/v1/times/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Times]
+      summary: Detalha um time
+      operationId: getTeam
+      responses:
+        '200':
+          description: Time encontrado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Team' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Times]
+      summary: Atualiza todos os dados de um time
+      operationId: updateTeam
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TeamInput' }
+      responses:
+        '200':
+          description: Time atualizado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Team' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+    delete:
+      tags: [Times]
+      summary: Remove um time sem elenco cadastrado
+      operationId: deleteTeam
+      responses:
+        '204':
+          description: Time removido.
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: O time ainda possui jogadores cadastrados.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /api/v1/times/{id}/jogadores:
+    get:
+      tags: [Times]
+      summary: Lista o elenco de um time
+      operationId: listTeamPlayers
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/Position'
+        - $ref: '#/components/parameters/Status'
+      responses:
+        '200':
+          description: Elenco do time, ordenado pelo número da camisa.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Player' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/jogadores:
+    get:
+      tags: [Jogadores]
+      summary: Lista jogadores com filtros opcionais
+      operationId: listPlayers
+      parameters:
+        - name: timeId
+          in: query
+          schema: { type: integer, minimum: 1 }
+          description: Filtra pelo time.
+        - $ref: '#/components/parameters/Position'
+        - $ref: '#/components/parameters/Status'
+      responses:
+        '200':
+          description: Lista de jogadores.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Player' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      tags: [Jogadores]
+      summary: Cadastra um jogador
+      operationId: createPlayer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlayerInput' }
+      responses:
+        '201':
+          description: Jogador criado.
+          headers:
+            Location:
+              schema: { type: string, example: /api/v1/jogadores/51 }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Player' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: O número da camisa já está em uso no time.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/v1/jogadores/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Jogadores]
+      summary: Detalha um jogador
+      operationId: getPlayer
+      responses:
+        '200':
+          description: Jogador encontrado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Player' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Jogadores]
+      summary: Atualiza todos os dados de um jogador
+      operationId: updatePlayer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlayerInput' }
+      responses:
+        '200':
+          description: Jogador atualizado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Player' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+    delete:
+      tags: [Jogadores]
+      summary: Remove um jogador
+      operationId: deletePlayer
+      responses:
+        '204':
+          description: Jogador removido.
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+      description: Identificador numérico do recurso.
+    Position:
+      name: posicao
+      in: query
+      schema: { $ref: '#/components/schemas/Position' }
+      description: Filtra pela posição.
+    Status:
+      name: situacao
+      in: query
+      schema: { $ref: '#/components/schemas/PlayerStatus' }
+      description: Filtra pela situação do atleta.
+
+  responses:
+    BadRequest:
+      description: Requisição inválida (JSON malformado ou campos inválidos).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: about:blank
+            title: Dados inválidos
+            status: 400
+            detail: A requisição possui 1 erro(s) de validação.
+            instance: /api/v1/jogadores
+            errors:
+              - field: number
+                message: O número deve estar entre 1 e 99.
+    NotFound:
+      description: Recurso não encontrado.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: about:blank
+            title: Recurso não encontrado
+            status: 404
+            detail: O jogador 999 não existe.
+            instance: /api/v1/jogadores/999
+    Conflict:
+      description: Conflito com o estado atual (valor único já usado).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unprocessable:
+      description: Regra de negócio violada (por exemplo, referência a um registro inexistente).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Problem:
+      type: object
+      description: Detalhes de erro conforme a RFC 9457.
+      required: [type, title, status]
+      properties:
+        type: { type: string, example: about:blank }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
+
+    FacilityType:
+      type: string
+      enum: [CAMPO, ACADEMIA, PISCINA, AUDITORIO, SALA_ANALISE, DEPARTAMENTO_MEDICO, REFEITORIO, ALOJAMENTO]
+    TeamCategory:
+      type: string
+      enum: [MASCULINO, FEMININO]
+    Position:
+      type: string
+      enum: [GOLEIRO, ZAGUEIRO, LATERAL, VOLANTE, MEIA, ATACANTE]
+    PreferredFoot:
+      type: string
+      enum: [DIREITO, ESQUERDO, AMBIDESTRO]
+    PlayerStatus:
+      type: string
+      enum: [DISPONIVEL, EM_TRATAMENTO, SUSPENSO]
+
+    TrainingCenterBase:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        name: { type: string, example: CT Parque Gigante }
+        city: { type: string, example: Porto Alegre }
+        address: { type: string, example: 'Av. Padre Cacique, 891, Praia de Belas, Porto Alegre - RS, 90810-240' }
+        areaHa: { type: [number, 'null'], example: 7 }
+        openedYear: { type: [integer, 'null'], example: 2005 }
+    TrainingCenterSummary:
+      allOf:
+        - $ref: '#/components/schemas/TrainingCenterBase'
+        - type: object
+          properties:
+            facilitiesCount: { type: integer, example: 9 }
+            teamsCount: { type: integer, example: 1 }
+    TrainingCenterDetail:
+      allOf:
+        - $ref: '#/components/schemas/TrainingCenterBase'
+        - type: object
+          properties:
+            facilities:
+              type: array
+              items: { $ref: '#/components/schemas/Facility' }
+            teams:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+                  category: { $ref: '#/components/schemas/TeamCategory' }
+                  nickname: { type: [string, 'null'] }
+    Facility:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        name: { type: string, example: Campo 1 }
+        type: { $ref: '#/components/schemas/FacilityType' }
+        capacity: { type: [integer, 'null'], example: 40 }
+        trainingCenterId: { type: integer, example: 1 }
+
+    TeamInput:
+      type: object
+      required: [name, category, trainingCenterId]
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120, example: Internacional (feminino) }
+        category: { $ref: '#/components/schemas/TeamCategory' }
+        nickname: { type: [string, 'null'], maxLength: 80, example: Gurias Coloradas }
+        competitions:
+          type: array
+          maxItems: 10
+          items: { type: string }
+          example: [Campeonato Brasileiro Feminino A1, Campeonato Gaúcho Feminino]
+        trainingCenterId: { type: integer, example: 2 }
+    Team:
+      allOf:
+        - type: object
+          properties:
+            id: { type: integer, example: 2 }
+        - $ref: '#/components/schemas/TeamInput'
+        - type: object
+          properties:
+            trainingCenter:
+              type: object
+              properties:
+                id: { type: integer, example: 2 }
+                name: { type: string, example: CT Morada dos Quero-Queros }
+            coach:
+              type: [object, 'null']
+              properties:
+                id: { type: integer }
+                name: { type: string }
+            playersCount: { type: integer, example: 25 }
+
+    PlayerInput:
+      type: object
+      required: [name, shirtName, number, position, preferredFoot, birthDate, teamId]
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120, example: Carolina Vieira Mattos }
+        shirtName: { type: string, minLength: 2, maxLength: 40, example: Carol Vieira }
+        number: { type: integer, minimum: 1, maximum: 99, example: 10 }
+        position: { $ref: '#/components/schemas/Position' }
+        preferredFoot: { $ref: '#/components/schemas/PreferredFoot' }
+        birthDate: { type: string, format: date, example: '1997-07-28' }
+        status: { $ref: '#/components/schemas/PlayerStatus' }
+        teamId: { type: integer, example: 2 }
+    Player:
+      allOf:
+        - type: object
+          properties:
+            id: { type: integer, example: 41 }
+        - $ref: '#/components/schemas/PlayerInput'
+        - type: object
+          properties:
+            team:
+              type: object
+              properties:
+                id: { type: integer, example: 2 }
+                name: { type: string, example: Internacional (feminino) }
