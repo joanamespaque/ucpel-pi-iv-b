@@ -13,6 +13,13 @@ info:
 
     Todas as respostas usam JSON. Erros seguem o formato Problem Details
     (RFC 9457), com o tipo de mídia `application/problem+json`.
+
+    **Autenticação:** as consultas (GET) são públicas. As operações que
+    alteram dados (POST, PUT e DELETE) exigem uma chave de API no cabeçalho
+    `X-API-Key`; sem ela, a resposta é 401.
+
+    **Limite de requisições:** 300 requisições a cada 15 minutos por IP, das
+    quais no máximo 30 de escrita. Acima disso, a resposta é 429.
   license:
     name: MIT
     identifier: MIT
@@ -98,12 +105,16 @@ paths:
       tags: [Times]
       summary: Cadastra um time
       operationId: createTeam
+      security:
+        - apiKey: []
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/TeamInput' }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '201':
           description: Time criado. O cabeçalho `Location` aponta para o novo recurso.
           headers:
@@ -135,12 +146,16 @@ paths:
       tags: [Times]
       summary: Atualiza todos os dados de um time
       operationId: updateTeam
+      security:
+        - apiKey: []
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/TeamInput' }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '200':
           description: Time atualizado.
           content:
@@ -154,7 +169,11 @@ paths:
       tags: [Times]
       summary: Remove um time sem elenco cadastrado
       operationId: deleteTeam
+      security:
+        - apiKey: []
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '204':
           description: Time removido.
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -210,12 +229,16 @@ paths:
       tags: [Jogadores]
       summary: Cadastra um jogador
       operationId: createPlayer
+      security:
+        - apiKey: []
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/PlayerInput' }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '201':
           description: Jogador criado.
           headers:
@@ -251,12 +274,16 @@ paths:
       tags: [Jogadores]
       summary: Atualiza todos os dados de um jogador
       operationId: updatePlayer
+      security:
+        - apiKey: []
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/PlayerInput' }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '200':
           description: Jogador atualizado.
           content:
@@ -270,13 +297,24 @@ paths:
       tags: [Jogadores]
       summary: Remove um jogador
       operationId: deletePlayer
+      security:
+        - apiKey: []
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '204':
           description: Jogador removido.
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
 
 components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Chave exigida nas operações de escrita (POST, PUT e DELETE).
+
   parameters:
     Id:
       name: id
@@ -321,6 +359,25 @@ components:
             status: 404
             detail: O jogador 999 não existe.
             instance: /api/v1/jogadores/999
+    Unauthorized:
+      description: Chave de API ausente ou inválida.
+      headers:
+        WWW-Authenticate:
+          schema: { type: string, example: 'ApiKey header="X-API-Key"' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: about:blank
+            title: Não autenticado
+            status: 401
+            detail: Informe uma chave de API válida no cabeçalho X-API-Key.
+            instance: /api/v1/jogadores
+    TooManyRequests:
+      description: Limite de requisições atingido.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Conflict:
       description: Conflito com o estado atual (valor único já usado).
       content:
