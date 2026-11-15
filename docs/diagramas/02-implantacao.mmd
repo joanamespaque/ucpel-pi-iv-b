@@ -1,0 +1,18 @@
+flowchart LR
+  U["Usuário<br/>navegador"]
+  subgraph GH["GitHub"]
+    REPO["Repositório<br/>joanamespaque/ucpel-pi-iv-b"]
+    PAGES["GitHub Pages<br/>docs/index.html + openapi.yaml"]
+  end
+  subgraph RENDER["Render · Web Service gratuito"]
+    NODE["Node.js 22<br/>InterCT API"]
+  end
+  subgraph NEON["Neon · região São Paulo"]
+    PG[("PostgreSQL 16")]
+  end
+  REPO -- "deploy automático<br/>(branch main)" --> NODE
+  REPO -- "publicação da pasta docs/" --> PAGES
+  U -- "HTTPS" --> PAGES
+  U -- "HTTPS /api/v1, /docs" --> NODE
+  PAGES -- "Try it out (HTTPS + CORS)" --> NODE
+  NODE -- "TLS · DATABASE_URL" --> PG

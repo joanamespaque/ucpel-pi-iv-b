@@ -1,0 +1,78 @@
+erDiagram
+  TRAINING_CENTERS ||--o{ FACILITIES : "possui"
+  TRAINING_CENTERS ||--o{ TEAMS : "sedia"
+  TEAMS ||--o| COACHES : "é dirigido por"
+  COACHES ||--o{ STAFF_MEMBERS : "lidera"
+  TEAMS ||--o{ PLAYERS : "tem no elenco"
+  TEAMS ||--o{ KITS : "usa"
+  TEAMS ||--o{ TRAINING_SESSIONS : "realiza"
+  FACILITIES ||--o{ TRAINING_SESSIONS : "recebe"
+  KITS |o--o{ TRAINING_SESSIONS : "é usado em"
+
+  TRAINING_CENTERS {
+    int id PK
+    varchar name UK
+    varchar city
+    varchar address
+    decimal area_ha
+    int opened_year
+  }
+  FACILITIES {
+    int id PK
+    varchar name
+    enum type
+    int capacity
+    int training_center_id FK
+  }
+  TEAMS {
+    int id PK
+    varchar name UK
+    enum category UK
+    varchar nickname
+    text_array competitions
+    int training_center_id FK
+  }
+  COACHES {
+    int id PK
+    varchar name
+    varchar nationality
+    varchar license
+    date contract_start
+    int team_id FK,UK
+  }
+  STAFF_MEMBERS {
+    int id PK
+    varchar name
+    enum role
+    int coach_id FK
+  }
+  PLAYERS {
+    int id PK
+    varchar name
+    varchar shirt_name
+    int number
+    enum position
+    enum preferred_foot
+    date birth_date
+    enum status
+    int team_id FK
+  }
+  KITS {
+    int id PK
+    enum type
+    int season
+    varchar colors
+    varchar supplier
+    int team_id FK
+  }
+  TRAINING_SESSIONS {
+    int id PK
+    date date
+    varchar start_time
+    varchar end_time
+    enum type
+    varchar notes
+    int team_id FK
+    int facility_id FK
+    int kit_id FK
+  }
