@@ -18,7 +18,7 @@ $config = Config::fromEnvironment();
 ini_set('display_errors', $config->production ? '0' : '1');
 $https = ($_SERVER['HTTPS'] ?? '') === 'on' || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
 
-App::securityHeaders();
+App::securityHeaders($https);
 App::startSession($https || $config->production);
 header('Content-Type: text/html; charset=utf-8');
 
