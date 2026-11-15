@@ -1,0 +1,216 @@
+// Esquema de dados do InterCT.
+// Os identificadores seguem o padrão em inglês adotado no código;
+// os valores exibidos ao usuário ficam em português.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FacilityType {
+  CAMPO
+  ACADEMIA
+  PISCINA
+  AUDITORIO
+  SALA_ANALISE
+  DEPARTAMENTO_MEDICO
+  REFEITORIO
+  ALOJAMENTO
+}
+
+enum TeamCategory {
+  MASCULINO
+  FEMININO
+}
+
+enum StaffRole {
+  AUXILIAR_TECNICO
+  PREPARADOR_FISICO
+  PREPARADOR_GOLEIROS
+  ANALISTA_DESEMPENHO
+  FISIOLOGISTA
+  MEDICO
+  FISIOTERAPEUTA
+  NUTRICIONISTA
+  PSICOLOGO
+  ROUPEIRO
+}
+
+enum Position {
+  GOLEIRO
+  ZAGUEIRO
+  LATERAL
+  VOLANTE
+  MEIA
+  ATACANTE
+}
+
+enum PreferredFoot {
+  DIREITO
+  ESQUERDO
+  AMBIDESTRO
+}
+
+enum PlayerStatus {
+  DISPONIVEL
+  EM_TRATAMENTO
+  SUSPENSO
+}
+
+enum KitType {
+  JOGO_1
+  JOGO_2
+  JOGO_3
+  GOLEIRO
+  TREINO
+  VIAGEM
+}
+
+enum SessionType {
+  TATICO
+  TECNICO
+  FISICO
+  REGENERATIVO
+  BOLA_PARADA
+}
+
+/// Centro de treinamento (CT).
+model TrainingCenter {
+  id         Int        @id @default(autoincrement())
+  name       String     @unique @db.VarChar(120)
+  city       String     @db.VarChar(80)
+  address    String     @db.VarChar(200)
+  areaHa     Decimal?   @map("area_ha") @db.Decimal(6, 2)
+  openedYear Int?       @map("opened_year")
+  facilities Facility[]
+  teams      Team[]
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  @@map("training_centers")
+}
+
+/// Espaço físico de um CT (campo, academia, piscina etc.).
+model Facility {
+  id               Int               @id @default(autoincrement())
+  name             String            @db.VarChar(120)
+  type             FacilityType
+  capacity         Int?
+  trainingCenterId Int               @map("training_center_id")
+  trainingCenter   TrainingCenter    @relation(fields: [trainingCenterId], references: [id], onDelete: Cascade)
+  sessions         TrainingSession[]
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  @@unique([trainingCenterId, name])
+  @@map("facilities")
+}
+
+/// Time principal (masculino ou feminino).
+model Team {
+  id               Int               @id @default(autoincrement())
+  name             String            @unique @db.VarChar(120)
+  category         TeamCategory      @unique
+  nickname         String?           @db.VarChar(80)
+  competitions     String[]
+  trainingCenterId Int               @map("training_center_id")
+  trainingCenter   TrainingCenter    @relation(fields: [trainingCenterId], references: [id], onDelete: Restrict)
+  coach            Coach?
+  players          Player[]
+  kits             Kit[]
+  sessions         TrainingSession[]
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  @@map("teams")
+}
+
+/// Técnico responsável por um time (relação 1:1).
+model Coach {
+  id            Int           @id @default(autoincrement())
+  name          String        @db.VarChar(120)
+  nationality   String        @db.VarChar(60)
+  license       String?       @db.VarChar(40)
+  contractStart DateTime      @map("contract_start") @db.Date
+  teamId        Int?          @unique @map("team_id")
+  team          Team?         @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  staff         StaffMember[]
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  @@map("coaches")
+}
+
+/// Integrante da comissão técnica de um técnico.
+model StaffMember {
+  id        Int       @id @default(autoincrement())
+  name      String    @db.VarChar(120)
+  role      StaffRole
+  coachId   Int       @map("coach_id")
+  coach     Coach     @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("staff_members")
+}
+
+/// Jogador ou jogadora do elenco de um time.
+model Player {
+  id            Int           @id @default(autoincrement())
+  name          String        @db.VarChar(120)
+  shirtName     String        @map("shirt_name") @db.VarChar(40)
+  number        Int
+  position      Position
+  preferredFoot PreferredFoot @map("preferred_foot")
+  birthDate     DateTime      @map("birth_date") @db.Date
+  status        PlayerStatus  @default(DISPONIVEL)
+  teamId        Int           @map("team_id")
+  team          Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  @@unique([teamId, number])
+  @@map("players")
+}
+
+/// Uniforme de um time em uma temporada.
+model Kit {
+  id        Int               @id @default(autoincrement())
+  type      KitType
+  season    Int
+  colors    String            @db.VarChar(120)
+  supplier  String            @db.VarChar(60)
+  teamId    Int               @map("team_id")
+  team      Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  sessions  TrainingSession[]
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  @@unique([teamId, type, season])
+  @@map("kits")
+}
+
+/// Sessão de treino agendada para um time em um espaço do CT.
+model TrainingSession {
+  id         Int         @id @default(autoincrement())
+  date       DateTime    @db.Date
+  startTime  String      @map("start_time") @db.VarChar(5)
+  endTime    String      @map("end_time") @db.VarChar(5)
+  type       SessionType
+  notes      String?     @db.VarChar(500)
+  teamId     Int         @map("team_id")
+  team       Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  facilityId Int         @map("facility_id")
+  facility   Facility    @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+  kitId      Int?        @map("kit_id")
+  kit        Kit?        @relation(fields: [kitId], references: [id], onDelete: SetNull)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  @@index([facilityId, date])
+  @@map("training_sessions")
+}
