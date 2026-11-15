@@ -101,7 +101,7 @@ A documentação completa, com corpos, exemplos e respostas de erro, está no [S
 - As listagens de jogadores, espaços, comissão técnica, uniformes e treinos aceitam `pagina` (padrão 1) e `limite` (padrão 50, máximo 100). O total de registros vem no cabeçalho `X-Total-Count`.
 - As consultas (GET) são públicas.
 - As operações que alteram dados (POST, PUT e DELETE) exigem uma chave no cabeçalho `X-API-Key`. A chave é configurada na variável de ambiente `API_KEY`.
-- Cada IP pode fazer até 300 requisições a cada 15 minutos. Dessas, até 30 podem ser de escrita.
+- Cada IP pode fazer até 300 requisições a cada 15 minutos. Dessas, até 30 podem ser de escrita. Requisições com chave válida, como as do cliente web, não entram na contagem.
 
 ```bash
 curl https://interct-api.onrender.com/api/v1/times/2/treinos?de=2026-11-16
@@ -136,16 +136,18 @@ As telas de consulta são abertas. Os cadastros, as alterações e as remoções
 
 A chave da API fica só no servidor do cliente e nunca é enviada ao navegador. O cliente também usa:
 
+- limite de tentativas de login por sessão e por IP, com espera de meio segundo a cada senha errada;
+
 - token CSRF em todos os formulários;
 - cookies de sessão HttpOnly e SameSite;
-- Content Security Policy;
+- Content Security Policy e HSTS;
 - escape de toda saída com `htmlspecialchars`.
 
 | Variável | Descrição |
 | --- | --- |
 | `API_BASE_URL` | Endereço da API, sem `/api/v1` |
 | `API_KEY` | A mesma chave configurada na API |
-| `ADMIN_PASSWORD` ou `ADMIN_PASSWORD_HASH` | Senha de administração, em texto ou como hash de `password_hash`. Sem ela, os cadastros ficam desativados. |
+| `ADMIN_PASSWORD` ou `ADMIN_PASSWORD_HASH` | Senha de administração, em texto ou como hash de `password_hash`. Em produção, a senha em texto precisa ter ao menos 16 caracteres. Sem ela, os cadastros ficam desativados. |
 | `APP_ENV` | `production` (padrão) ou `development` |
 
 ## Execução local
