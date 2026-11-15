@@ -71,6 +71,12 @@ docs/                    página da documentação publicada no GitHub Pages
 | PUT | `/api/v1/jogadores/{id}` | Atualiza um jogador |
 | DELETE | `/api/v1/jogadores/{id}` | Remove um jogador |
 
+As consultas (GET) são públicas. As operações que alteram dados (POST, PUT e DELETE) exigem uma chave no cabeçalho `X-API-Key`, configurada na variável de ambiente `API_KEY`. Cada IP pode fazer até 300 requisições a cada 15 minutos, das quais 30 de escrita.
+
+```bash
+curl -X DELETE https://interct-api.onrender.com/api/v1/jogadores/51 -H "X-API-Key: <chave>"
+```
+
 Erros seguem o formato Problem Details (RFC 9457):
 
 ```json
@@ -99,7 +105,7 @@ Requisitos: Node.js 22 e PostgreSQL 16.
 
 ```bash
 cd api
-cp .env.example .env        # ajuste DATABASE_URL se necessário
+cp .env.example .env        # ajuste DATABASE_URL e API_KEY
 npm install
 npx prisma migrate deploy   # cria as tabelas
 npm run db:seed             # carrega os dados iniciais
@@ -108,7 +114,7 @@ npm run dev
 
 ### Testes
 
-Os testes usam o banco definido em `api/.env.test` e recriam os dados iniciais antes da execução.
+Os testes usam o banco definido em `api/.env.test` e recriam os dados iniciais antes da execução. A recriação só é aceita em bancos cujo nome termina em `_test`.
 
 ```bash
 cd api
@@ -118,7 +124,7 @@ npm test
 ## Publicação
 
 - **Banco de dados:** PostgreSQL gerenciado no Neon.
-- **API:** Web Service no Render com diretório raiz `api`, comando de build `npm run render:build`, comando de início `npm start` e as variáveis `DATABASE_URL` e `CORS_ORIGINS`.
+- **API:** Web Service no Render com diretório raiz `api`, comando de build `npm run render:build`, comando de início `npm start` e as variáveis `DATABASE_URL`, `API_KEY`, `CORS_ORIGINS` e `NODE_ENV=production`.
 - **Documentação:** GitHub Pages a partir da pasta `docs/` da branch `main`. O comando `npm run docs:build` copia a especificação para essa pasta.
 
 ## Versionamento
