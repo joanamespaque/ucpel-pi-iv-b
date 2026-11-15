@@ -24,7 +24,8 @@ info:
     máximo 100). O total de registros vem no cabeçalho `X-Total-Count`.
 
     **Limite de requisições:** 300 requisições a cada 15 minutos por IP, das
-    quais no máximo 30 de escrita. Acima disso, a resposta é 429.
+    quais no máximo 30 de escrita. Acima disso, a resposta é 429. Requisições
+    com chave de API válida, como as do cliente web, não entram nessa contagem.
   license:
     name: MIT
     identifier: MIT

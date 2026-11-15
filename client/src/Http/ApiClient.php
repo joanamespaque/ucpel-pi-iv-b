@@ -9,7 +9,8 @@ use Closure;
 /**
  * Cliente HTTP da InterCT API baseado em cURL.
  *
- * A chave de API é enviada apenas nas operações de escrita e nunca chega ao navegador.
+ * A chave de API é enviada em todas as requisições, o que libera a escrita e isenta o cliente do limite
+ * de requisições por IP da API. A chave fica só no servidor e nunca chega ao navegador.
  */
 final class ApiClient
 {
@@ -73,10 +74,10 @@ final class ApiClient
             $payload = json_encode($body, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
             $headers[] = 'Content-Type: application/json';
         }
-        if ($method !== 'GET') {
-            if ($this->apiKey === null) {
-                throw new ApiException(401, 'Não autenticado', 'O cliente não possui chave de API configurada.');
-            }
+        if ($method !== 'GET' && $this->apiKey === null) {
+            throw new ApiException(401, 'Não autenticado', 'O cliente não possui chave de API configurada.');
+        }
+        if ($this->apiKey !== null) {
             $headers[] = 'X-API-Key: ' . $this->apiKey;
         }
 

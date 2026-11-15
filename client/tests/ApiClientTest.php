@@ -37,11 +37,18 @@ final class ApiClientTest extends TestCase
         self::assertSame([['id' => 1]], $response->data);
     }
 
-    public function testConsultaNaoEnviaChaveDeApi(): void
+    public function testConsultaEnviaAChaveQuandoConfigurada(): void
     {
         $this->client(200, [])->get('/cts');
 
-        self::assertNotContains('X-API-Key: chave', $this->calls[0][2]);
+        self::assertContains('X-API-Key: chave', $this->calls[0][2]);
+    }
+
+    public function testConsultaFuncionaSemChaveConfigurada(): void
+    {
+        $this->client(200, [], [], null)->get('/cts');
+
+        self::assertSame(['Accept: application/json'], $this->calls[0][2]);
     }
 
     public function testEscritaEnviaChaveECorpoJson(): void
