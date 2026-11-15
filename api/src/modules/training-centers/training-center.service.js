@@ -31,4 +31,29 @@ export const trainingCenterService = {
     if (!center) throw HttpError.notFound(`O CT ${id} não existe.`);
     return present(center);
   },
+
+  /** @param {object} data */
+  async create(data) {
+    return present(await trainingCenterRepository.create(data));
+  },
+
+  /**
+   * @param {number} id
+   * @param {object} data
+   */
+  async update(id, data) {
+    await this.get(id);
+    return present(await trainingCenterRepository.update(id, data));
+  },
+
+  /**
+   * Remove um CT. CTs que sediam times não podem ser removidos.
+   * @param {number} id
+   */
+  async remove(id) {
+    await this.get(id);
+    const teams = await trainingCenterRepository.countTeams(id);
+    if (teams > 0) throw HttpError.conflict(`O CT ${id} sedia ${teams} time(s). Transfira os times antes de removê-lo.`);
+    await trainingCenterRepository.delete(id);
+  },
 };
