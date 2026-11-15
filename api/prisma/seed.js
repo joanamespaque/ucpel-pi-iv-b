@@ -85,6 +85,11 @@ async function main() {
   }
 
   if (reset) {
+    // A recriação apaga todos os dados; só é aceita em bancos de teste ou com autorização explícita.
+    const databaseName = new URL(process.env.DATABASE_URL).pathname.slice(1);
+    if (!databaseName.endsWith('_test') && process.env.ALLOW_DB_RESET !== 'true') {
+      throw new Error('A opção --reset só é aceita em bancos com nome terminado em _test ou com ALLOW_DB_RESET=true.');
+    }
     // Recria os dados do zero e reinicia as sequências de ids.
     await prisma.$executeRawUnsafe(
       'TRUNCATE training_sessions, kits, players, staff_members, coaches, teams, facilities, training_centers RESTART IDENTITY CASCADE',
