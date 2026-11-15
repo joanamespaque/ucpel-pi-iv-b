@@ -15,7 +15,7 @@
     "db:seed": "node prisma/seed.js",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "dotenv -e .env.test -- prisma migrate deploy && dotenv -e .env.test -- node prisma/seed.js --reset && dotenv -e .env.test -- vitest run",
+    "test": "dotenv -o -e .env.test -- prisma migrate deploy && dotenv -o -e .env.test -- node prisma/seed.js --reset && dotenv -o -e .env.test -- vitest run",
     "docs:build": "node scripts/build-docs.js",
     "db:seed:reset": "node prisma/seed.js --reset",
     "render:build": "npm ci && npx prisma generate && npx prisma migrate deploy && node prisma/seed.js"
@@ -28,10 +28,11 @@
     "@prisma/client": "^6.19.3",
     "cors": "^2.8.6",
     "express": "^5.3.0",
+    "express-rate-limit": "^8.7.2",
     "helmet": "^8.3.0",
     "swagger-ui-express": "^5.0.1",
     "yaml": "^2.9.1",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
