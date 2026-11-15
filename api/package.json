@@ -1,0 +1,46 @@
+{
+  "name": "interct-api",
+  "version": "0.1.0",
+  "description": "API REST para a organização do centro de treinamento do Sport Club Internacional (projeto acadêmico, dados ilustrativos).",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch --env-file=.env src/server.js",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "node prisma/seed.js",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "test": "dotenv -e .env.test -- prisma migrate deploy && dotenv -e .env.test -- node prisma/seed.js --reset && dotenv -e .env.test -- vitest run",
+    "docs:build": "node scripts/build-docs.js",
+    "db:seed:reset": "node prisma/seed.js --reset",
+    "render:build": "npm ci && npx prisma generate && npx prisma migrate deploy && node prisma/seed.js"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "cors": "^2.8.6",
+    "express": "^5.3.0",
+    "helmet": "^8.3.0",
+    "swagger-ui-express": "^5.0.1",
+    "yaml": "^2.9.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "dotenv-cli": "^11.1.0",
+    "eslint": "^10.0.1",
+    "globals": "^17.14.0",
+    "prettier": "^3.10.1",
+    "prisma": "^6.19.3",
+    "supertest": "^7.3.2",
+    "vitest": "^5.1.0"
+  }
+}
