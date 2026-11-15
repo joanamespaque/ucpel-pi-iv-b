@@ -1,22 +1,37 @@
 flowchart TB
   subgraph CLI["Camada de apresentação"]
-    C["Cliente HTTP<br/>(navegador, Swagger UI, cliente web)"]
+    direction LR
+    NAV["Navegador"]
+    SW["Swagger UI<br/>(GitHub Pages e /docs)"]
+    subgraph PHP["Cliente web · PHP 8.3 (MVC)"]
+      direction TB
+      FC["public/index.php<br/>Router"]
+      PC["Controllers"]
+      V["Views<br/>htmlspecialchars"]
+      AC["ApiClient<br/>cURL + JSON + X-API-Key"]
+      FC --> PC
+      PC --> V
+      PC --> AC
+    end
+    NAV -- "HTML e formulários" --> FC
   end
   subgraph API["InterCT API · Node.js 22 + Express 5"]
     direction TB
+    MW["Helmet, CORS, limite de requisições,<br/>requireApiKey (escrita)"]
     R["Rotas /api/v1<br/>validate() com Zod"]
     CT["Controllers<br/>HTTP ⇄ serviço"]
     S["Services<br/>regras de negócio"]
     RP["Repositories<br/>Prisma Client"]
     EH["errorHandler<br/>Problem Details (RFC 9457)"]
-    R --> CT --> S --> RP
+    MW --> R --> CT --> S --> RP
     R -. erro de validação .-> EH
     S -. HttpError .-> EH
   end
   subgraph DADOS["Camada de dados"]
     DB[("PostgreSQL 16")]
   end
-  C -- "requisição HTTP + JSON" --> R
-  EH -- "resposta de erro JSON" --> C
-  CT -- "resposta JSON" --> C
+  AC -- "requisição HTTP + JSON" --> MW
+  SW -- "requisição HTTP + JSON" --> MW
+  CT -- "resposta JSON" --> AC
+  EH -- "erro JSON" --> AC
   RP -- "SQL" --> DB

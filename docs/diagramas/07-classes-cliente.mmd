@@ -1,0 +1,72 @@
+classDiagram
+  direction LR
+  class App {
+    -Router router
+    -View view
+    +handle(method, uri) string
+    +startSession(secure)$
+    +securityHeaders()$
+  }
+  class Router {
+    +get(pattern, action)
+    +post(pattern, action)
+    +match(method, path) array
+  }
+  class View {
+    +share(name, value)
+    +render(template, data) string
+  }
+  class Controller {
+    <<abstract>>
+    #ApiClient api
+    #View view
+    #Auth auth
+    #render(template, data) string
+    #redirect(location) string
+    #guardWrite() string
+    #formError(error, template, data) string
+  }
+  class ApiClient {
+    -string baseUrl
+    -string apiKey
+    +get(path, query) ApiResponse
+    +post(path, body) ApiResponse
+    +put(path, body) ApiResponse
+    +delete(path) ApiResponse
+  }
+  class ApiResponse {
+    +int status
+    +mixed data
+    +total() int
+  }
+  class ApiException {
+    +int status
+    +string title
+    +array fieldErrors
+    +fromProblem(status, body)$
+  }
+  class Auth {
+    +enabled() bool
+    +check() bool
+    +attempt(password) bool
+    +logout()
+  }
+  class Csrf {
+    +token()$ string
+    +valid(token)$ bool
+  }
+  App --> Router
+  App --> View
+  App ..> Controller : registra ações
+  Controller <|-- HomeController
+  Controller <|-- TeamController
+  Controller <|-- PlayerController
+  Controller <|-- CoachController
+  Controller <|-- KitController
+  Controller <|-- SessionController
+  Controller <|-- AuthController
+  Controller --> ApiClient
+  Controller --> Auth
+  Controller ..> Csrf
+  ApiClient ..> ApiResponse : cria
+  ApiClient ..> ApiException : lança

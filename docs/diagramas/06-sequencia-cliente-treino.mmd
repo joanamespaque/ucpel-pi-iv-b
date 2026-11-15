@@ -1,0 +1,31 @@
+sequenceDiagram
+  autonumber
+  actor U as Comissão técnica
+  participant B as Navegador
+  participant C as Cliente PHP<br/>SessionController
+  participant A as ApiClient (cURL)
+  participant R as API · rotas e validate()
+  participant S as sessionService
+  participant DB as PostgreSQL
+  U->>B: preenche o formulário de treino
+  B->>C: POST /treinos (campos + token CSRF)
+  C->>C: verifica login e token CSRF
+  C->>A: post('/treinos', dados)
+  A->>R: POST /api/v1/treinos<br/>X-API-Key + JSON
+  R->>R: requireApiKey e validação Zod
+  R->>S: create(dados)
+  S->>DB: busca time, espaço e uniforme
+  S->>S: espaço no CT do time? uniforme do time?
+  S->>DB: treinos do espaço na mesma data
+  alt horário livre
+    S->>DB: INSERT training_sessions
+    S-->>R: treino criado
+    R-->>A: 201 Created + JSON
+    A-->>C: ApiResponse
+    C-->>B: 303 para a agenda da semana
+  else horário ocupado
+    S-->>R: HttpError 409
+    R-->>A: 409 Problem Details
+    A-->>C: ApiException
+    C-->>B: formulário com a mensagem de conflito
+  end
