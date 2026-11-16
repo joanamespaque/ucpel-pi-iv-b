@@ -2,6 +2,22 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: /api
+    target-branch: develop
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: 'prisma'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@prisma/client'
+        update-types: ['version-update:semver-major']
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+  - package-ecosystem: composer
+    directory: /client
+    target-branch: develop
+    schedule:
+      interval: weekly

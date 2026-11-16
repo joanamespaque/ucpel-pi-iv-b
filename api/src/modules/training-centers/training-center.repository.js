@@ -25,4 +25,27 @@ export const trainingCenterRepository = {
       },
     });
   },
+
+  /** @param {object} data */
+  create(data) {
+    return prisma.trainingCenter.create({ data });
+  },
+
+  /**
+   * @param {number} id
+   * @param {object} data
+   */
+  update(id, data) {
+    return prisma.trainingCenter.update({ where: { id }, data });
+  },
+
+  /** @param {number} id */
+  delete(id) {
+    return prisma.trainingCenter.delete({ where: { id } });
+  },
+
+  /** @param {number} id */
+  countTeams(id) {
+    return prisma.team.count({ where: { trainingCenterId: id } });
+  },
 };

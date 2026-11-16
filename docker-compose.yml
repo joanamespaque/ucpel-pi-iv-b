@@ -1,4 +1,4 @@
-# Ambiente completo para execução local: banco de dados e API.
+# Ambiente completo para execução local: banco de dados, API e cliente web.
 services:
   db:
     image: postgres:16-alpine
@@ -27,6 +27,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  client:
+    build: ./client
+    environment:
+      API_BASE_URL: http://api:3000
+      API_KEY: ${API_KEY:-chave-local-dev}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin-local}
+      APP_ENV: development
+    ports:
+      - '127.0.0.1:8080:80'
+    depends_on:
+      - api
 
 volumes:
   pgdata:

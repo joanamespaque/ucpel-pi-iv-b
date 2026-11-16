@@ -1,6 +1,6 @@
 import { HttpError } from '../../lib/http-error.js';
 import { prisma } from '../../lib/prisma.js';
-import { toDateOnly } from '../../lib/serializers.js';
+import { toDateOnly, toPage } from '../../lib/serializers.js';
 import { playerRepository } from './player.repository.js';
 
 /**
@@ -40,15 +40,16 @@ async function checkRules(body, currentId) {
  */
 export const playerService = {
   /**
-   * Lista jogadores com filtros opcionais.
-   * @param {{ timeId?: number, posicao?: string, situacao?: string }} query
+   * Lista jogadores com filtros opcionais e paginação.
+   * @param {{ timeId?: number, posicao?: string, situacao?: string, pagina?: number, limite?: number }} query
    */
   async list(query = {}) {
     const filters = {};
     if (query.timeId) filters.teamId = query.timeId;
     if (query.posicao) filters.position = query.posicao;
     if (query.situacao) filters.status = query.situacao;
-    return (await playerRepository.findMany(filters)).map(present);
+    const { items, total } = await playerRepository.findMany(filters, toPage(query));
+    return { items: items.map(present), total };
   },
 
   /** @param {number} id */

@@ -1,5 +1,8 @@
-import { teamService } from './team.service.js';
+import { sendPage } from '../../lib/serializers.js';
+import { kitService } from '../kits/kit.service.js';
 import { playerService } from '../players/player.service.js';
+import { sessionService } from '../sessions/session.service.js';
+import { teamService } from './team.service.js';
 
 /**
  * Controladores HTTP dos times.
@@ -31,6 +34,20 @@ export const teamController = {
   async listPlayers(req, res) {
     const { id } = req.validated.params;
     await teamService.get(id);
-    res.json(await playerService.list({ ...req.validated.query, timeId: id }));
+    sendPage(res, await playerService.list({ ...req.validated.query, timeId: id }));
+  },
+
+  /** Uniformes do time, aceitando os filtros de /uniformes. */
+  async listKits(req, res) {
+    const { id } = req.validated.params;
+    await teamService.get(id);
+    sendPage(res, await kitService.list({ ...req.validated.query, timeId: id }));
+  },
+
+  /** Agenda de treinos do time, aceitando os filtros de /treinos. */
+  async listSessions(req, res) {
+    const { id } = req.validated.params;
+    await teamService.get(id);
+    sendPage(res, await sessionService.list({ ...req.validated.query, timeId: id }));
   },
 };

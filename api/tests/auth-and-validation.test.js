@@ -1,3 +1,4 @@
+import { hasValidApiKey } from '../src/middlewares/require-api-key.js';
 import { describe, expect, it } from 'vitest';
 import { api, auth, validPlayer } from './helpers.js';
 
@@ -54,5 +55,15 @@ describe('Validação de limites de entrada', () => {
     expect(res.headers['x-content-type-options']).toBe('nosniff');
     expect(res.headers['content-security-policy']).toContain("default-src 'self'");
     expect(res.headers['x-powered-by']).toBeUndefined();
+  });
+});
+
+describe('Isenção do limite de requisições', () => {
+  const request = (key) => ({ get: (name) => (name.toLowerCase() === 'x-api-key' ? key : undefined) });
+
+  it('reconhece apenas a chave de API correta', () => {
+    expect(hasValidApiKey(request(process.env.API_KEY))).toBe(true);
+    expect(hasValidApiKey(request('chave-errada'))).toBe(false);
+    expect(hasValidApiKey(request(undefined))).toBe(false);
   });
 });

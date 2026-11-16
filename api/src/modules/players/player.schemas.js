@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { dateOnly, idNumber, MAX_INT } from '../../lib/schemas.js';
+import { dateOnly, idNumber, MAX_INT, paginationSchema } from '../../lib/schemas.js';
 
 const positions = ['GOLEIRO', 'ZAGUEIRO', 'LATERAL', 'VOLANTE', 'MEIA', 'ATACANTE'];
 const statuses = ['DISPONIVEL', 'EM_TRATAMENTO', 'SUSPENSO'];
@@ -17,7 +17,7 @@ export const playerBodySchema = z.object({
 });
 
 /** Filtros aceitos em GET /jogadores. */
-export const playerQuerySchema = z.object({
+export const playerQuerySchema = paginationSchema.extend({
   timeId: z.coerce.number().int().positive().max(MAX_INT).optional(),
   posicao: z.enum(positions).optional(),
   situacao: z.enum(statuses).optional(),

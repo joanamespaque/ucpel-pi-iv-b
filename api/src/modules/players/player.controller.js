@@ -1,3 +1,4 @@
+import { sendPage } from '../../lib/serializers.js';
 import { playerService } from './player.service.js';
 
 /**
@@ -5,7 +6,7 @@ import { playerService } from './player.service.js';
  */
 export const playerController = {
   async list(req, res) {
-    res.json(await playerService.list(req.validated.query));
+    sendPage(res, await playerService.list(req.validated.query));
   },
 
   async get(req, res) {

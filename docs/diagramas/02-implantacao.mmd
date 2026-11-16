@@ -2,17 +2,22 @@ flowchart LR
   U["Usuário<br/>navegador"]
   subgraph GH["GitHub"]
     REPO["Repositório<br/>joanamespaque/ucpel-pi-iv-b"]
+    GA["GitHub Actions<br/>lint, testes e build"]
     PAGES["GitHub Pages<br/>docs/index.html + openapi.yaml"]
   end
-  subgraph RENDER["Render · Web Service gratuito"]
+  subgraph RENDER["Render · Web Services gratuitos"]
+    WEB["Docker · PHP 8.3 + Apache<br/>Cliente web"]
     NODE["Node.js 22<br/>InterCT API"]
   end
   subgraph NEON["Neon · região São Paulo"]
     PG[("PostgreSQL 16")]
   end
+  REPO -- "push e pull request" --> GA
   REPO -- "deploy automático<br/>(branch main)" --> NODE
+  REPO -- "deploy automático<br/>(branch main)" --> WEB
   REPO -- "publicação da pasta docs/" --> PAGES
+  U -- "HTTPS" --> WEB
   U -- "HTTPS" --> PAGES
-  U -- "HTTPS /api/v1, /docs" --> NODE
   PAGES -- "Try it out (HTTPS + CORS)" --> NODE
+  WEB -- "HTTPS /api/v1 (cURL)" --> NODE
   NODE -- "TLS · DATABASE_URL" --> PG

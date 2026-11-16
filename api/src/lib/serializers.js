@@ -19,3 +19,20 @@ export function toDateOnly(value) {
 export function toNumber(value) {
   return value === null || value === undefined ? null : Number(value);
 }
+
+/**
+ * Converte os parâmetros de paginação em `skip` e `take` do Prisma.
+ * @param {{ pagina: number, limite: number }} query
+ */
+export function toPage({ pagina = 1, limite = 50 } = {}) {
+  return { skip: (pagina - 1) * limite, take: limite };
+}
+
+/**
+ * Envia a listagem com o total de registros no cabeçalho X-Total-Count.
+ * @param {import('express').Response} res
+ * @param {{ items: Array, total: number }} result
+ */
+export function sendPage(res, { items, total }) {
+  res.set('X-Total-Count', String(total)).json(items);
+}
