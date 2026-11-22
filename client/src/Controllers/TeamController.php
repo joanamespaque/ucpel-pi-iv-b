@@ -20,8 +20,8 @@ final class TeamController extends Controller
         return $this->render('times/show', [
             'team' => $team,
             'filters' => $filters,
-            'players' => $this->list("/times/{$id}/jogadores", $filters + ['limite' => 100]),
-            'kits' => $this->list("/times/{$id}/uniformes", ['limite' => 100]),
+            'players' => $this->listAll("/times/{$id}/jogadores", $filters),
+            'kits' => $this->listAll("/times/{$id}/uniformes"),
             'sessions' => $this->list("/times/{$id}/treinos", ['de' => $today->format('Y-m-d'), 'limite' => 5]),
         ]);
     }
