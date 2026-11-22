@@ -21,3 +21,6 @@ updates:
     target-branch: develop
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: 'phpunit/phpunit'
+        update-types: ['version-update:semver-major']
