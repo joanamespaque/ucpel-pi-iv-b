@@ -55,8 +55,14 @@ export const kitService = {
    * @param {object} body
    */
   async update(id, body) {
-    await this.get(id);
+    const current = await this.get(id);
     await checkRules(body, id);
+    if (body.teamId !== current.teamId) {
+      const sessions = await prisma.trainingSession.count({ where: { kitId: id } });
+      if (sessions > 0) {
+        throw HttpError.conflict(`O uniforme ${id} é usado em ${sessions} treino(s) e não pode mudar de time.`);
+      }
+    }
     return present(await kitRepository.update(id, body));
   },
 

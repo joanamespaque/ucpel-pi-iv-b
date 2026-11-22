@@ -223,3 +223,43 @@ describe('Paginação', () => {
     expect((await api.get('/api/v1/jogadores?limite=500')).status).toBe(400);
   });
 });
+
+describe('Integridade entre recursos', () => {
+  const team1 = async () => (await api.get('/api/v1/times/1')).body;
+
+  it('PUT de time com treinos para outro CT responde 409', async () => {
+    const { id, name, category, nickname, competitions } = await team1();
+    const res = await api.put(`/api/v1/times/${id}`).set(auth).send({ name, category, nickname, competitions, trainingCenterId: 2 });
+    expect(res.status).toBe(409);
+  });
+
+  it('PUT de espaço com treinos para outro CT responde 409', async () => {
+    const facility = (await api.get('/api/v1/espacos/1')).body;
+    const res = await api
+      .put('/api/v1/espacos/1')
+      .set(auth)
+      .send({ name: facility.name, type: facility.type, capacity: facility.capacity, trainingCenterId: 2 });
+    expect(res.status).toBe(409);
+  });
+
+  it('PUT de uniforme usado em treinos para outro time responde 409', async () => {
+    const kit = (await api.get('/api/v1/times/1/uniformes?tipo=TREINO')).body[0];
+    const res = await api
+      .put(`/api/v1/uniformes/${kit.id}`)
+      .set(auth)
+      .send({ type: kit.type, season: kit.season, colors: kit.colors, supplier: kit.supplier, teamId: 2 });
+    expect(res.status).toBe(409);
+  });
+
+  it('PUT sem um campo opcional limpa o valor anterior', async () => {
+    const created = await api
+      .post('/api/v1/cts')
+      .set(auth)
+      .send({ name: 'CT Opcional', city: 'Pelotas', address: 'Rua de Teste, 1', areaHa: 3, openedYear: 2020 });
+    const id = created.body.id;
+    const updated = await api.put(`/api/v1/cts/${id}`).set(auth).send({ name: 'CT Opcional', city: 'Pelotas', address: 'Rua de Teste, 1' });
+    expect(updated.body.areaHa).toBeNull();
+    expect(updated.body.openedYear).toBeNull();
+    await api.delete(`/api/v1/cts/${id}`).set(auth);
+  });
+});

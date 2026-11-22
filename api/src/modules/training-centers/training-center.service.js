@@ -17,6 +17,12 @@ function present(center) {
 }
 
 /**
+ * Normaliza os campos opcionais: no PUT, um campo omitido passa a ser nulo.
+ * @param {object} data
+ */
+const toData = (data) => ({ ...data, areaHa: data.areaHa ?? null, openedYear: data.openedYear ?? null });
+
+/**
  * Regras de negócio dos centros de treinamento.
  */
 export const trainingCenterService = {
@@ -34,7 +40,7 @@ export const trainingCenterService = {
 
   /** @param {object} data */
   async create(data) {
-    return present(await trainingCenterRepository.create(data));
+    return present(await trainingCenterRepository.create(toData(data)));
   },
 
   /**
@@ -43,7 +49,7 @@ export const trainingCenterService = {
    */
   async update(id, data) {
     await this.get(id);
-    return present(await trainingCenterRepository.update(id, data));
+    return present(await trainingCenterRepository.update(id, toData(data)));
   },
 
   /**
@@ -54,6 +60,10 @@ export const trainingCenterService = {
     await this.get(id);
     const teams = await trainingCenterRepository.countTeams(id);
     if (teams > 0) throw HttpError.conflict(`O CT ${id} sedia ${teams} time(s). Transfira os times antes de removê-lo.`);
+    const sessions = await trainingCenterRepository.countSessions(id);
+    if (sessions > 0) {
+      throw HttpError.conflict(`Os espaços do CT ${id} possuem ${sessions} treino(s) agendado(s). Remova os treinos antes.`);
+    }
     await trainingCenterRepository.delete(id);
   },
 };

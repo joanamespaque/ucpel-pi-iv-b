@@ -38,7 +38,7 @@ export const teamService = {
   /** @param {object} data */
   async create(data) {
     await ensureTrainingCenter(data.trainingCenterId);
-    return present(await teamRepository.create(data));
+    return present(await teamRepository.create({ ...data, nickname: data.nickname ?? null }));
   },
 
   /**
@@ -46,9 +46,17 @@ export const teamService = {
    * @param {object} data
    */
   async update(id, data) {
-    await this.get(id);
+    const current = await this.get(id);
     await ensureTrainingCenter(data.trainingCenterId);
-    return present(await teamRepository.update(id, data));
+    if (data.trainingCenterId !== current.trainingCenterId) {
+      const sessions = await prisma.trainingSession.count({ where: { teamId: id } });
+      if (sessions > 0) {
+        throw HttpError.conflict(
+          `O time ${id} possui ${sessions} treino(s) em espaços do CT atual. Remova os treinos antes de transferir o time.`,
+        );
+      }
+    }
+    return present(await teamRepository.update(id, { ...data, nickname: data.nickname ?? null }));
   },
 
   /**
