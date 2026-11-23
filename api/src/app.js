@@ -36,6 +36,8 @@ export function createApp() {
       origin: corsOrigin(),
       methods: ['GET', 'POST', 'PUT', 'DELETE'],
       allowedHeaders: ['Content-Type', 'X-API-Key'],
+      // Permite que clientes de outras origens leiam o total da paginação e o endereço do recurso criado.
+      exposedHeaders: ['X-Total-Count', 'Location'],
       maxAge: 600,
     }),
   );

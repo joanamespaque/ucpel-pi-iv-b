@@ -67,3 +67,20 @@ describe('Isenção do limite de requisições', () => {
     expect(hasValidApiKey(request(undefined))).toBe(false);
   });
 });
+
+describe('Corpo e cabeçalhos', () => {
+  it('corpo acima de 100 kB responde 413 em Problem Details', async () => {
+    const res = await api
+      .post('/api/v1/treinos')
+      .set(auth)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ notes: 'x'.repeat(150 * 1024) }));
+    expect(res.status).toBe(413);
+    expect(res.headers['content-type']).toContain('application/problem+json');
+  });
+
+  it('expõe o total da paginação a clientes de outras origens', async () => {
+    const res = await api.get('/api/v1/jogadores?limite=5').set('Origin', 'https://exemplo.test');
+    expect(res.headers['access-control-expose-headers']).toContain('X-Total-Count');
+  });
+});

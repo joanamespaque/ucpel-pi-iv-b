@@ -21,7 +21,7 @@ final class SessionController extends Controller
             'de' => $this->query('de') ?: $monday->format('Y-m-d'),
             'ate' => $this->query('ate') ?: $monday->modify('+6 days')->format('Y-m-d'),
         ];
-        $sessions = $this->list('/treinos', $filters + ['limite' => 100]);
+        $sessions = $this->listAll('/treinos', $filters);
 
         $days = [];
         foreach ($sessions as $session) {
@@ -122,8 +122,8 @@ final class SessionController extends Controller
             'session' => $session,
             'id' => $id,
             'teams' => $this->list('/times'),
-            'facilities' => $this->list('/espacos', ['limite' => 100]),
-            'kits' => $this->list('/uniformes', ['limite' => 100]),
+            'facilities' => $this->listAll('/espacos'),
+            'kits' => $this->listAll('/uniformes'),
             'errors' => [],
         ];
     }

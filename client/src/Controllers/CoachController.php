@@ -16,7 +16,7 @@ final class CoachController extends Controller
     {
         return $this->render('tecnicos/show', [
             'coach' => $this->api->get("/tecnicos/{$id}")->data,
-            'staff' => $this->list("/tecnicos/{$id}/comissao", ['limite' => 100]),
+            'staff' => $this->listAll("/tecnicos/{$id}/comissao"),
         ]);
     }
 

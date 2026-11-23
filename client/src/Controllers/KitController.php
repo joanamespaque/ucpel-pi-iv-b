@@ -18,7 +18,7 @@ final class KitController extends Controller
         return $this->render('uniformes/index', [
             'filters' => $filters,
             'teams' => $this->list('/times'),
-            'kits' => $this->list('/uniformes', $filters + ['limite' => 100]),
+            'kits' => $this->listAll('/uniformes', $filters),
         ]);
     }
 

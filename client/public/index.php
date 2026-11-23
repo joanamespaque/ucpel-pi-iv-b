@@ -12,6 +12,9 @@ if (PHP_SAPI === 'cli-server' && is_file(__DIR__ . parse_url($_SERVER['REQUEST_U
     return false;
 }
 
+// As datas da agenda (hoje, semana atual) seguem o horário de Brasília.
+date_default_timezone_set('America/Sao_Paulo');
+
 Config::loadDotEnv(dirname(__DIR__) . '/.env');
 $config = Config::fromEnvironment();
 

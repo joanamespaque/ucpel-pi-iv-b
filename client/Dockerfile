@@ -12,7 +12,7 @@ RUN a2enmod rewrite \
     && printf 'ServerTokens Prod\nServerSignature Off\n' > /etc/apache2/conf-available/zz-interct.conf \
     && a2enconf zz-interct \
     && cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
-    && printf 'expose_php = Off\n' > "$PHP_INI_DIR/conf.d/zz-interct.ini"
+    && printf 'expose_php = Off\ndate.timezone = America/Sao_Paulo\n' > "$PHP_INI_DIR/conf.d/zz-interct.ini"
 WORKDIR /var/www/html
 COPY --from=vendor /app/vendor ./vendor
 COPY public ./public

@@ -110,6 +110,28 @@ abstract class Controller
     }
 
     /**
+     * Busca todas as páginas de uma listagem paginada, de 100 em 100 itens, até o total
+     * informado no cabeçalho X-Total-Count ou o limite de páginas.
+     *
+     * @param array<string, scalar> $query
+     * @return list<array<string, mixed>>
+     */
+    protected function listAll(string $path, array $query = [], int $maxPages = 10): array
+    {
+        $items = [];
+        for ($page = 1; $page <= $maxPages; $page++) {
+            $response = $this->api->get($path, $query + ['pagina' => $page, 'limite' => 100]);
+            $batch = $response->data ?? [];
+            $items = array_merge($items, $batch);
+            $total = $response->total();
+            if ($batch === [] || count($batch) < 100 || count($items) >= $total) {
+                break;
+            }
+        }
+        return $items;
+    }
+
+    /**
      * Mostra o formulário novamente com os erros devolvidos pela API.
      *
      * @param array<string, mixed> $data

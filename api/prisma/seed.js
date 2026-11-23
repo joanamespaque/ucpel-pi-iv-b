@@ -87,10 +87,11 @@ const KITS_2026 = [
 
 /**
  * Cria os uniformes de 2026 de cada time.
+ * @param {import('@prisma/client').Prisma.TransactionClient | PrismaClient} db cliente ou transação do Prisma
  * @param {number[]} teamIds times que recebem os uniformes
  */
-async function seedKits(teamIds) {
-  await prisma.kit.createMany({
+async function seedKits(db, teamIds) {
+  await db.kit.createMany({
     data: teamIds.flatMap((teamId) => KITS_2026.map((kit) => ({ ...kit, season: 2026, supplier: 'Adidas', teamId }))),
   });
 }
@@ -125,16 +126,20 @@ const WEEK = [
 ];
 
 /**
- * Cria a semana-modelo de treinos a partir de cada segunda-feira informada.
- * @param {{ men: { id: number }, women: { id: number }, parqueGigante: { id: number }, alvorada: { id: number } }} refs
+ * Cria a semana-modelo de treinos a partir de cada segunda-feira informada. Cada treino usa um espaço
+ * do CT do próprio time. Todos os espaços e uniformes são conferidos antes de qualquer gravação.
+ * @param {import('@prisma/client').Prisma.TransactionClient | PrismaClient} db cliente ou transação do Prisma
+ * @param {{ men: { id: number, trainingCenterId: number }, women: { id: number, trainingCenterId: number } }} teams
  * @param {string[]} mondays datas (AAAA-MM-DD) das segundas-feiras
  */
-async function seedSchedule({ men, women, parqueGigante, alvorada }, mondays) {
-  const teams = { men: { id: men.id, ctId: parqueGigante.id }, women: { id: women.id, ctId: alvorada.id } };
-  const facilities = await prisma.facility.findMany({ select: { id: true, name: true, trainingCenterId: true } });
-  const kits = await prisma.kit.findMany({ where: { type: 'TREINO', season: 2026 }, select: { id: true, teamId: true } });
-  const facilityId = (ctId, name) => facilities.find((f) => f.trainingCenterId === ctId && f.name === name).id;
-  const kitId = (teamId) => kits.find((k) => k.teamId === teamId).id;
+async function seedSchedule(db, teams, mondays) {
+  const facilities = await db.facility.findMany({ select: { id: true, name: true, trainingCenterId: true } });
+  const kits = await db.kit.findMany({ where: { type: 'TREINO', season: 2026 }, select: { id: true, teamId: true } });
+  const find = (list, predicate, description) => {
+    const item = list.find(predicate);
+    if (!item) throw new Error(`Carga de treinos interrompida: ${description} não encontrado.`);
+    return item.id;
+  };
 
   const data = mondays.flatMap((monday) =>
     WEEK.map(([day, startTime, endTime, type, teamKey, facilityName, withKit, notes]) => {
@@ -148,37 +153,38 @@ async function seedSchedule({ men, women, parqueGigante, alvorada }, mondays) {
         type,
         notes,
         teamId: team.id,
-        facilityId: facilityId(team.ctId, facilityName),
-        kitId: withKit ? kitId(team.id) : null,
+        facilityId: find(
+          facilities,
+          (f) => f.trainingCenterId === team.trainingCenterId && f.name === facilityName,
+          `espaço "${facilityName}" no CT do time ${team.id}`,
+        ),
+        kitId: withKit ? find(kits, (k) => k.teamId === team.id, `uniforme de treino do time ${team.id}`) : null,
       };
     }),
   );
-  await prisma.trainingSession.createMany({ data });
+  await db.trainingSession.createMany({ data });
 }
 
 /**
- * Completa um banco criado antes da versão 1.0.0, que tem CTs, espaços, times e elencos,
- * mas ainda não tem uniformes nem treinos. Os treinos ocupam as semanas da apresentação do projeto.
+ * Completa, uma única vez, um banco criado antes da versão 1.0.0, que tem CTs, espaços, times e
+ * elencos, mas ainda não tem uniformes nem treinos. Executada só com a opção --completar.
+ * Os treinos ocupam as semanas da apresentação do projeto, e tudo é gravado em uma única transação.
  */
 async function seedMissingSchedule() {
   if ((await prisma.kit.count()) > 0 || (await prisma.trainingSession.count()) > 0) {
-    console.log('Banco já possui dados; carga inicial ignorada. Use --reset para recriar.');
+    console.log('O banco já possui uniformes ou treinos; nada foi alterado.');
     return;
   }
-  const team = (category) => prisma.team.findFirst({ where: { category }, select: { id: true } });
-  const center = (name) => prisma.trainingCenter.findFirst({ where: { name }, select: { id: true } });
-  const refs = {
-    men: await team('MASCULINO'),
-    women: await team('FEMININO'),
-    parqueGigante: await center('CT Parque Gigante'),
-    alvorada: await center('CT Morada dos Quero-Queros'),
-  };
-  if (Object.values(refs).some((ref) => !ref)) {
-    console.log('Times ou CTs da carga inicial não encontrados; uniformes e treinos não foram criados.');
+  const team = (category) => prisma.team.findFirst({ where: { category }, select: { id: true, trainingCenterId: true } });
+  const teams = { men: await team('MASCULINO'), women: await team('FEMININO') };
+  if (!teams.men || !teams.women) {
+    console.log('Times da carga inicial não encontrados; uniformes e treinos não foram criados.');
     return;
   }
-  await seedKits([refs.men.id, refs.women.id]);
-  await seedSchedule(refs, ['2026-11-30', '2026-12-07']);
+  await prisma.$transaction(async (tx) => {
+    await seedKits(tx, [teams.men.id, teams.women.id]);
+    await seedSchedule(tx, teams, ['2026-11-30', '2026-12-07']);
+  });
   console.log('Uniformes e treinos adicionados ao banco existente.');
 }
 
@@ -187,7 +193,11 @@ async function main() {
   const existing = await prisma.trainingCenter.count();
 
   if (existing > 0 && !reset) {
-    await seedMissingSchedule();
+    if (process.argv.includes('--completar')) {
+      await seedMissingSchedule();
+    } else {
+      console.log('Banco já possui dados; carga inicial ignorada. Use --reset para recriar.');
+    }
     return;
   }
 
@@ -317,8 +327,8 @@ async function main() {
     data: [...MEN_PLAYERS.map((p) => toPlayer(p, men.id)), ...WOMEN_PLAYERS.map((p) => toPlayer(p, women.id))],
   });
 
-  await seedKits([men.id, women.id]);
-  await seedSchedule({ men, women, parqueGigante, alvorada }, ['2026-11-16']);
+  await seedKits(prisma, [men.id, women.id]);
+  await seedSchedule(prisma, { men, women }, ['2026-11-16']);
 
   // Situações variadas para demonstrar os filtros da API.
   await prisma.player.updateMany({ where: { teamId: men.id, number: 3 }, data: { status: 'EM_TRATAMENTO' } });

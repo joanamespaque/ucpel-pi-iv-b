@@ -37,6 +37,11 @@ export function errorHandler(error, req, res, _next) {
     httpError = fromPrisma(error);
   } else if (error?.type === 'entity.parse.failed') {
     httpError = new HttpError(400, 'JSON malformado', 'O corpo da requisição não é um JSON válido.');
+  } else if (error?.type === 'entity.too.large') {
+    httpError = new HttpError(413, 'Corpo da requisição muito grande', 'O corpo da requisição excede o limite de 100 kB.');
+  } else if (error?.expose && error.status >= 400 && error.status < 500) {
+    // Demais erros de leitura do corpo, como codificação ou charset não suportados.
+    httpError = new HttpError(error.status, 'Requisição inválida', error.message);
   } else if (!(error instanceof HttpError)) {
     console.error(error);
     httpError = new HttpError(500, 'Erro interno', 'Ocorreu um erro inesperado no servidor.');

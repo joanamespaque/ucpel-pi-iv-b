@@ -48,4 +48,12 @@ export const trainingCenterRepository = {
   countTeams(id) {
     return prisma.team.count({ where: { trainingCenterId: id } });
   },
+
+  /**
+   * Conta os treinos agendados nos espaços do CT.
+   * @param {number} id
+   */
+  countSessions(id) {
+    return prisma.trainingSession.count({ where: { facility: { trainingCenterId: id } } });
+  },
 };

@@ -38,7 +38,7 @@ export const facilityService = {
   /** @param {object} data */
   async create(data) {
     await ensureTrainingCenter(data.trainingCenterId);
-    return present(await facilityRepository.create(data));
+    return present(await facilityRepository.create({ ...data, capacity: data.capacity ?? null }));
   },
 
   /**
@@ -46,9 +46,15 @@ export const facilityService = {
    * @param {object} data
    */
   async update(id, data) {
-    await this.get(id);
+    const current = await this.get(id);
     await ensureTrainingCenter(data.trainingCenterId);
-    return present(await facilityRepository.update(id, data));
+    if (data.trainingCenterId !== current.trainingCenterId) {
+      const sessions = await facilityRepository.countSessions(id);
+      if (sessions > 0) {
+        throw HttpError.conflict(`O espaço ${id} possui ${sessions} treino(s) agendado(s) e não pode mudar de CT.`);
+      }
+    }
+    return present(await facilityRepository.update(id, { ...data, capacity: data.capacity ?? null }));
   },
 
   /**

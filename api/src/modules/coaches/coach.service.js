@@ -25,7 +25,12 @@ async function checkTeam(teamId, currentId) {
 }
 
 /** @param {object} body */
-const toData = (body) => ({ ...body, teamId: body.teamId ?? null, contractStart: new Date(body.contractStart) });
+const toData = (body) => ({
+  ...body,
+  license: body.license ?? null,
+  teamId: body.teamId ?? null,
+  contractStart: new Date(body.contractStart),
+});
 
 /**
  * Regras de negócio dos técnicos.
